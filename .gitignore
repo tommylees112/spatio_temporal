@@ -1,0 +1,8 @@
+.vscode
+lightning_logs
+.pytest_cache
+.mypy_cache
+*normalizer*.pkl
+tensorboard
+configs/
+bin
