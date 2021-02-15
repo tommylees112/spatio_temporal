@@ -6,3 +6,4 @@ lightning_logs
 tensorboard
 configs/
 bin
+data/kenya.pkl
