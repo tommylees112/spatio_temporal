@@ -36,7 +36,6 @@ class TestDataLoader:
         # check that can recreate original dataset
 
     def test_dataset(self):
-        seq_length = 10
         target_variable = "target"
         input_variables = ["feature"]
         pixel_dims = ["lat", "lon"]
@@ -45,12 +44,13 @@ class TestDataLoader:
         raw_ds = _make_dataset()
         ds = XarrayDataset(raw_ds, cfg=cfg, mode="train")
 
-        assert ds.target_variable == target_variable
-        assert ds.input_variables == input_variables + ["autoregressive"]
+        assert ds.target == target_variable
+        assert ds.inputs == input_variables + ["autoregressive"] if cfg.autoregressive else input_variables
 
         x_features = (
             len(input_variables) + 1 if cfg.autoregressive else len(input_variables)
         )
+        seq_length = 10
         for i in range(10):
             x, y = ds.__getitem__(i)
 
@@ -62,31 +62,42 @@ class TestDataLoader:
 
     def test_dataloader(self):
         ds = _make_dataset()
-        cfg = Config(Path("tests/testconfigs/config.yml"))
-        dl = PixelDataLoader(ds, cfg=cfg, num_workers=1, mode="train",)
+        cfg = Config(Path("tests/testconfigs/test_config.yml"))
+        dl = PixelDataLoader(ds, cfg=cfg, num_workers=1, mode="train", batch_size=cfg.batch_size)
+
+        assert dl.batch_size == cfg.batch_size
 
         batch_size = 30
         seq_length = 10
+        autoregressive = False
         data = next(iter(dl))
-        assert len(data) == 2, "Expected X, y dimensions == 2"
+        assert len(data) == 2, "Expected X, y samples, len == 2"
+        n_inputs = len(["features"]) + 1 if autoregressive else len(["features"])
+
         assert data[0].shape == (
             batch_size,
             seq_length,
-            2,
-        ), f"Size Mismatch! Expected: {(batch_size, seq_length, 2)} Got: {data[0].shape}"
+            n_inputs,
+        ), f"Size Mismatch! Expected: {(batch_size, seq_length, n_inputs)} Got: {data[0].shape}"
 
     def test_kenya_data(self):
         ds = pickle.load(Path("data/kenya.pkl").open("rb"))
         cfg = Config(Path("tests/testconfigs/config.yml"))
 
-        dl = PixelDataLoader(ds, cfg=cfg, num_workers=1, mode="train",)
+        dl = PixelDataLoader(ds, cfg=cfg, num_workers=1, mode="train", batch_size=cfg.batch_size)
 
         data = dl.__iter__().__next__()
 
-        batch_size = 30
+        batch_size = 256
         seq_length = 10
+        input_variables = ["precip", "t2m", "SMsurf"]
+        autoregressive = False
+        n_inputs = len(input_variables) + 1 if autoregressive else len(input_variables)
+        
+        assert cfg.batch_size == batch_size
+        assert cfg.autoregressive == autoregressive
         assert data[0].shape == (
             batch_size,
             seq_length,
-            len(input_variables) + 1,
-        ), f"X Data Mismatch! Expected: {(batch_size, seq_length, len(input_variables) + 1)} Got: {data[0].shape}"
+            n_inputs,
+        ), f"X Data Mismatch! Expected: {(batch_size, seq_length, n_inputs)} Got: {data[0].shape}"
