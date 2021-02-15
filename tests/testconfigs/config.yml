@@ -1,0 +1,63 @@
+# --- Experiment Configurations ---------------------------------------------------------------------
+# experiment name, used as folder name
+experiment_name: test
+
+# place to store run directory (if empty runs are stored in code_dir/runs/)
+run_dir:
+
+# fixed seed, leave empty to use a random seed
+seed: 1234
+
+# training, validation and test time periods (format = 'dd/mm/yyyy')
+train_start_date: "31/01/2003"
+train_end_date: "31/12/2015"
+
+validation_start_date: "31/01/2000"
+validation_end_date: "31/12/2002"
+
+test_start_date: "31/01/2016"
+test_end_date: "31/12/2020"
+
+# --- Validation Configurations ---------------------------------------------------------------------
+# --- Model Configurations --------------------------------------------------------------------------
+hidden_size: 64
+
+
+# --- Training Configurations -----------------------------------------------------------------------
+n_epochs: 5
+
+learning_rate: 1e-2
+
+batch_size: 256
+
+# input timesteps
+seq_length: 10
+
+# horizon to make predictions over ([1, ..., horizon])
+horizon: 1
+
+# specify optimizer [Adam]
+optimizer: Adam
+
+# specify loss [MSE, NSE, RMSE]
+loss: MSE
+
+# number of parallel workers used by the dataloaders
+num_workers: 4
+
+# --- Data Configurations ---------------------------------------------------------------------------
+# Path to data set root
+data_dir: data/kenya.pkl
+
+target_variable: boku_VCI
+
+input_variables: 
+  - precip
+  - t2m
+  - SMsurf
+
+autoregressive: True
+
+pixel_dims: 
+  - lat
+  - lon
