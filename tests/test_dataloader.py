@@ -3,6 +3,7 @@ import numpy as np
 import pickle
 from pathlib import Path
 import pytest
+import xarray as xr
 
 #  import from pipeline
 from tests.utils import (
@@ -19,6 +20,7 @@ from spatio_temporal.data.dataloader import (
 from spatio_temporal.data.data_utils import _stack_xarray
 from spatio_temporal.config import Config
 
+TEST_REAL_DATA = False
 
 class TestDataLoader:
     def test_stack_xarray(self):
@@ -109,29 +111,53 @@ class TestDataLoader:
         assert y.shape == (cfg.batch_size, cfg.seq_length, 1)
 
     def test_kenya_data(self, tmp_path):
-        ds = pickle.load(Path("data/kenya.pkl").open("rb"))
-        cfg = Config(Path("tests/testconfigs/config.yml"))
-        create_and_assign_temp_run_path_to_config(cfg, tmp_path)
+        if TEST_REAL_DATA:
+            ds = pickle.load(Path("data/kenya.pkl").open("rb"))
+            cfg = Config(Path("tests/testconfigs/config.yml"))
+            create_and_assign_temp_run_path_to_config(cfg, tmp_path)
 
-        dl = PixelDataLoader(
-            ds, cfg=cfg, num_workers=1, mode="train", batch_size=cfg.batch_size
-        )
+            dl = PixelDataLoader(
+                ds, cfg=cfg, num_workers=1, mode="train", batch_size=cfg.batch_size
+            )
 
-        data = dl.__iter__().__next__()
+            data = dl.__iter__().__next__()
 
-        batch_size = 256
-        seq_length = 10
-        input_variables = ["precip", "t2m", "SMsurf"]
-        autoregressive = True
-        n_inputs = len(input_variables) + 1 if autoregressive else len(input_variables)
+            batch_size = 256
+            seq_length = 10
+            input_variables = ["precip", "t2m", "SMsurf"]
+            autoregressive = True
+            n_inputs = len(input_variables) + 1 if autoregressive else len(input_variables)
 
-        assert cfg.batch_size == batch_size
-        assert cfg.autoregressive == autoregressive
-        assert data[0].shape == (
-            batch_size,
-            seq_length,
-            n_inputs,
-        ), f"X Data Mismatch! Expected: {(batch_size, seq_length, n_inputs)} Got: {data[0].shape}"
+            assert cfg.batch_size == batch_size
+            assert cfg.autoregressive == autoregressive
+            assert data[0].shape == (
+                batch_size,
+                seq_length,
+                n_inputs,
+            ), f"X Data Mismatch! Expected: {(batch_size, seq_length, n_inputs)} Got: {data[0].shape}"
+        else:
+            pass
+
+    def test_runoff_data(self, tmp_path):
+        if TEST_REAL_DATA:
+            ds = xr.open_dataset("data/ALL_dynamic_ds.nc")
+            cfg = Config(Path("tests/testconfigs/config_runoff.yml"))
+            create_and_assign_temp_run_path_to_config(cfg, tmp_path)
+            
+            # train period
+            train_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
+                time=slice(cfg.train_start_date, cfg.train_end_date)
+            )
+            train_dl = PixelDataLoader(train_ds, cfg=cfg, mode="train", num_workers=4, batch_size=cfg.batch_size)
+            
+            # check data is loaded properly
+            x, y = next(iter(train_dl))
+            n_in_vars = len(cfg.input_variables) + 1 if cfg.autoregressive else len(cfg.input_variables)
+            assert x.shape == (cfg.batch_size, cfg.seq_length, n_in_vars)
+            assert y.shape == (cfg.batch_size, cfg.seq_length, 1)
+        else:
+            pass
+
 
     def test_sine_wave_example():
         #  create_sin_with_different_phases()
