@@ -22,10 +22,15 @@ class PixelDataLoader(DataLoader):
     """A simple torch DataLoader wrapping xr.DataArray"""
 
     def __init__(
-        self, data: xr.Dataset, cfg: Config, mode: str, **kwargs,
+        self,
+        data: xr.Dataset,
+        cfg: Config,
+        mode: str,
+        normalizer: Optional[Normalizer] = None,
+        **kwargs,
     ):
         #  TODO: add ability to create different subsets by time (train, test, validation)
-        dataset = XarrayDataset(data, cfg=cfg, mode=mode,)
+        dataset = XarrayDataset(data, cfg=cfg, mode=mode, normalizer=normalizer)
         super().__init__(dataset, **kwargs)
 
         self.input_size = dataset.input_size
