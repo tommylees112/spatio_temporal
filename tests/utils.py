@@ -96,3 +96,7 @@ def create_and_assign_temp_run_path_to_config(cfg: Config, tmp_path: Path) -> No
     # create run_dir
     (tmp_path / "runs").mkdir(exist_ok=True, parents=True)
     cfg.run_dir = tmp_path / "runs"
+
+
+def create_sin_with_different_phases():
+    assert False

@@ -1,6 +1,6 @@
 from pathlib import Path
 from ruamel.yaml import YAML
-from typing import Dict, Any, Union, List
+from typing import Dict, Any, Union, List, Optional
 from collections import OrderedDict
 import pandas as pd
 
@@ -36,6 +36,8 @@ class Config:
         "learning_rate": 1e-2,
         "time_str": "time",
         "run_dir": Path("runs"),
+        "forecast_variables": None,
+        "static_inputs": None,
     }
 
     def __init__(self, cfg_path: Path):
@@ -280,3 +282,11 @@ class Config:
     @property
     def time_str(self) -> str:
         return self.get_property_with_defaults("time_str")
+
+    @property
+    def forecast_variables(self) -> Optional[List[str]]:
+        return self.get_property_with_defaults("forecast_variables")
+
+    @property
+    def static_inputs(self) -> Optional[List[str]]:
+        return self.get_property_with_defaults("static_inputs")

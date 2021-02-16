@@ -6,17 +6,21 @@ import torch
 from spatio_temporal.data.dataloader import PixelDataLoader
 from spatio_temporal.model.lstm import LSTM
 from spatio_temporal.config import Config
-from tests.utils import _make_dataset, get_oxford_weather_data
+from tests.utils import (
+    _make_dataset,
+    get_oxford_weather_data,
+    create_and_assign_temp_run_path_to_config,
+)
 from torch.utils.data import random_split
 from torch.nn import functional as F
 from tqdm import tqdm
 
 
 class TestModels:
-    def test_lstm_forward_pass(self):
+    def test_lstm_forward_pass(self, tmp_path):
         ds = pickle.load(Path("data/kenya.pkl").open("rb"))
         cfg = Config(Path("tests/testconfigs/config.yml"))
-
+        create_and_assign_temp_run_path_to_config(cfg, tmp_path)
         dl = PixelDataLoader(ds, cfg=cfg, mode="train")
 
         model = LSTM(
@@ -29,7 +33,7 @@ class TestModels:
 
         assert all(np.isin(["h_n", "c_n", "y_hat"], [k for k in y_hat.keys()]))
 
-    def test_single_train(self):
+    def test_single_train(self, tmp_path):
         torch.manual_seed(1)
         np.random.seed(1)
 
@@ -39,6 +43,7 @@ class TestModels:
         hidden_size = 64
         ds = pickle.load(Path("data/kenya.pkl").open("rb"))
         cfg = Config(Path("tests/testconfigs/config.yml"))
+        create_and_assign_temp_run_path_to_config(cfg, tmp_path)
 
         dl = PixelDataLoader(
             ds, mode="train", cfg=cfg, num_workers=1, batch_size=batch_size,

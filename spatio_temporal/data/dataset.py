@@ -112,12 +112,12 @@ class XarrayDataset(Dataset):
             df_native = ds.sel(sample=pixel).to_dataframe()
             _check_no_missing_times_in_time_series(df_native)
 
-            # TODO: Include forecasted variables into dynamic
+            #  TODO: Include forecasted variables into dynamic
             # self.forecast_variables
             x_d = df_native[self.inputs].values
 
-            # TODO: forecast horizons != 1
-            # self.horizon
+            #  TODO: forecast horizons != 1
+            #  self.horizon
             y = df_native[self.target].values
 
             #  TODO: deal with static inputs
