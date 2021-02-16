@@ -39,7 +39,8 @@ class Config:
     }
 
     def __init__(self, cfg_path: Path):
-        self._cfg = self._read_config(cfg_path)
+        self.file_path = cfg_path
+        self._cfg = self._read_config(self.file_path)
         self._check_all_mandatory()
 
     def _read_config(self, cfg_path: Path):
@@ -119,8 +120,9 @@ class Config:
 
     def get_property_with_defaults(self, key: str) -> Any:
         # update the _cfg if access the default of an attribute
-        value = self._defaults[key]
-        self._cfg[key] = value
+        if key not in self._cfg.keys():
+            value = self._defaults[key]
+            self._cfg[key] = value
 
         return self._cfg[key]
 

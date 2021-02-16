@@ -55,7 +55,3 @@ input_variables:
   - feature
 
 autoregressive: True
-
-pixel_dims: 
-  - lat
-  - lon

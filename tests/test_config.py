@@ -7,10 +7,7 @@ from ruamel.yaml import YAML
 
 class TestConfig:
     def test_config(self):
-        paths = [
-            Path("tests/testconfigs/config.yml"),
-            Path("tests/testconfigs/test_config.yml"),
-        ]
+        paths = list(Path("tests/testconfigs").glob("*.yml"))
         for path in paths:
             cfg = Config(cfg_path=path)
 
@@ -20,6 +17,13 @@ class TestConfig:
             assert all(np.isin(cfg._mandatory_keys, list(dir(cfg))))
             assert all(np.isin(cfg._mandatory_keys, list(cfg._cfg.keys())))
             assert all(np.isin(list(cfg._defaults.keys()), list(dir(cfg))))
+
+            if cfg.file_path.name == "test_1d_config.yml":
+                assert cfg.pixel_dims == ["sample"]
+
+            # TODO: test default args
+            original = cfg._cfg.pop("pixel_dims", None)
+            assert cfg.pixel_dims == ["lat", "lon"], "Expect to return the default"
 
     def test_dump_config(self, tmp_path: Path):
         run_dir = tmp_path / "runs"

@@ -3,6 +3,7 @@ import xarray as xr
 import pandas as pd
 from pathlib import Path
 from typing import List
+from spatio_temporal.config import Config
 
 
 def _make_dataset(
@@ -55,3 +56,43 @@ def get_oxford_weather_data() -> pd.DataFrame:
         names=names,
     )
     return df
+
+
+def create_test_oxford_run_data(data_path: Path("data")):
+    df = get_oxford_weather_data()
+    df["time"] = pd.to_datetime(df["Date Time"])
+    df["sample"] = 1
+    df = df.drop("Date Time", axis=1)
+    df = df.set_index(["time", "sample"])
+    df.sort_index()
+    df = df.sort_index()
+    df = df.iloc[0:1000]
+    df.to_csv(data_path / "test_oxford_weather.csv")
+
+
+def download_test_jena_data(data_dir: Path = Path("data")) -> None:
+    import tensorflow as tf
+    import os
+
+    zip_path = tf.keras.utils.get_file(
+        origin="https://storage.googleapis.com/tensorflow/tf-keras-datasets/jena_climate_2009_2016.csv.zip",
+        fname=(data_dir / "jena_climate_2009_2016.csv.zip").as_posix(),
+        extract=True,
+    )
+    csv_path, _ = os.path.splitext(zip_path)
+    df = pd.read_csv(csv_path)
+    df.to_csv(data_dir / "jena_climate_2009_2016.csv")
+
+
+def load_test_jena_data_as_dataset() -> xr.Dataset:
+    df = pd.read_csv("data/test_jena_weather.csv")
+    df["time"] = pd.to_datetime(df["time"])
+    df = df.rename({"sample": "pixel"}, axis=1).set_index(["time", "pixel"])
+    ds = df.to_xarray()
+    return ds
+
+
+def create_and_assign_temp_run_path_to_config(cfg: Config, tmp_path: Path) -> None:
+    # create run_dir
+    (tmp_path / "runs").mkdir(exist_ok=True, parents=True)
+    cfg.run_dir = tmp_path / "runs"

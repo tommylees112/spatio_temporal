@@ -51,7 +51,6 @@ class XarrayDataset(Dataset):
         # TODO: allow static inputs
         self.static_inputs = False
 
-        #  TODO: normalisation
         ds: xr.Dataset = stacked
         ds = self.run_normalisation(ds)
 
@@ -62,7 +61,9 @@ class XarrayDataset(Dataset):
             ds = xr.merge([ds, auto])
 
         self.input_size = len(self.inputs)
-        self.output_size = 1
+        #  TODO: work with multiple time horizons (1, ..., h)
+        self.horizon = cfg.horizon
+        self.output_size = 1  # self.horizon
 
         # init dictionaries to store the RAW pixel timeseries
         self.x_d: Dict[str, Tuple[str, int]] = {}

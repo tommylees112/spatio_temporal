@@ -1,4 +1,5 @@
 # Byte-compiled / optimized / DLL files
+# find . -name '*.pyc' | xargs -n 1 git rm --cached
 __pycache__/
 *.py[cod]
 *$py.class
@@ -36,3 +37,4 @@ configs/
 runs/
 bin/
 data/kenya.pkl
+*.csv

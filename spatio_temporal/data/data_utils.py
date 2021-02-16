@@ -18,10 +18,34 @@ def normalise_dataset(ds: xr.Dataset, scaler: Optional[StandardScaler] = None):
     return scaler, norm_ds
 
 
+def _alternative_inf_freq(df, method="mode") -> pd.Timedelta:
+    # https://stackoverflow.com/a/31518059/9940782
+    # taking difference of the timeindex and use the mode (or smallest difference) as the freq
+    diff = (pd.Series(df.index[1:]) - pd.Series(df.index[:-1])).value_counts()
+
+    if method == "mode":
+        # the mode can be considered as frequency
+        result = diff.index[0]  # output: Timedelta('0 days 01:00:00')
+    elif method == "min":
+        # or maybe the smallest difference
+        result = diff.index.min()  # output: Timedelta('0 days 01:00:00')
+    else:
+        assert False, "only two possible methods for inferring frequency"
+
+    return result
+
+
 def _check_no_missing_times_in_time_series(df):
+    assert (
+        df.index.dtype == "datetime64[ns]"
+    ), "Need the time index to be of type: datetime64[ns]"
     min_timestamp = df.index.min()
     max_timestamp = df.index.max()
     inf_freq = pd.infer_freq(df.index)
+    if inf_freq is None:
+        inf_freq = _alternative_inf_freq(df)
+
+    #  inf_data = pd.date_range(start=min_timestamp, end=max_timestamp, freq=inf_freq)
     assert (
         list(
             pd.date_range(
