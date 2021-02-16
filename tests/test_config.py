@@ -19,7 +19,7 @@ class TestConfig:
             assert all(np.isin(list(cfg._defaults.keys()), list(dir(cfg))))
 
             if cfg.file_path.name == "test_1d_config.yml":
-                assert cfg.pixel_dims == ["sample"]
+                assert cfg.pixel_dims == ["pixel"]
 
             # TODO: test default args
             original = cfg._cfg.pop("pixel_dims", None)
