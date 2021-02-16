@@ -10,6 +10,7 @@ from tests.utils import (
     get_oxford_weather_data,
     load_test_jena_data_as_dataset,
     create_and_assign_temp_run_path_to_config,
+    create_sin_with_different_phases,
 )
 from spatio_temporal.data.dataloader import (
     XarrayDataset,
@@ -131,6 +132,10 @@ class TestDataLoader:
             seq_length,
             n_inputs,
         ), f"X Data Mismatch! Expected: {(batch_size, seq_length, n_inputs)} Got: {data[0].shape}"
+    
+    def test_sine_wave_example():
+        # create_sin_with_different_phases()
+        pass
 
     def test_longer_horizon_fcast(self, tmp_path):
         cfg = Config(Path("tests/testconfigs/test_1d_config_horizon.yml"))
@@ -142,4 +147,21 @@ class TestDataLoader:
         )
         x, y = dl.__iter__().__next__()
         assert y.shape == (cfg.batch_size, cfg.seq_length, cfg.horizon)
+        assert False
+        
+    def test_static_inputs(self, tmp_path):
+        ds = _make_dataset()
+        ds_static = ds.mean(dim="time")
+
+        cfg = Config(Path("tests/testconfigs/test_config.yml"))
+        create_and_assign_temp_run_path_to_config(cfg, tmp_path)
+        assert False
+
+    def test_forecast_inputs(self, tmp_path):
+        ds = _make_dataset()
+        ds_forecast = ds.shift(1).drop("target").rename({"feature": "feature_fcast1"})
+        ds = xr.merge([ds, ds_forecast])
+
+        cfg = Config(Path("tests/testconfigs/test_config.yml"))
+        create_and_assign_temp_run_path_to_config(cfg, tmp_path)
         assert False
