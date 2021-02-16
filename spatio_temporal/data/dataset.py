@@ -75,9 +75,10 @@ class XarrayDataset(Dataset):
         self.output_size = 1  # self.horizon
 
         # init dictionaries to store the RAW pixel timeseries
-        self.x_d: Dict[str, Tuple[str, int]] = {}
-        self.y: Dict[str, Tuple[str, int]] = {}
-        self.x_s: Dict[str, Optional[Tuple[str, int]]] = {}
+        self.x_d: Dict[str, np.ndarray] = {}
+        self.y: Dict[str, np.ndarray] = {}
+        self.times: Dict[str, Optional[np.ndarray]] = {}
+        self.x_s: Dict[str, Optional[np.ndarray]] = {}
 
         # 1. Check for missing data
         # 2. Store int -> data index
@@ -111,6 +112,7 @@ class XarrayDataset(Dataset):
         pixel: str,
         x_d: np.ndarray,
         y: np.ndarray,
+        times: Optional[np.ndarray] = None,
         x_s: Optional[np.ndarray] = None,
     ):
         self.x_d[pixel] = x_d
@@ -118,21 +120,29 @@ class XarrayDataset(Dataset):
         if self.static_inputs is not None:
             self.x_s[pixel] = x_s
 
+        # store metadata
+        if times is not None:
+            #  NOTE: this is super inefficient becuase duplicated over each pixel
+            #  store as integers to keep pytorch happy
+            self.times[pixel] = np.array(times).astype(np.int64)
+
     def create_lookup_table(self, ds):
-        # self.freq = pd.infer_freq(self.ds.time.values)
         pixels_without_samples = []
         lookup: List[Tuple[str, int]] = []
 
         for pixel in tqdm(ds.sample.values, desc="Loading Data: "):
             df_native = ds.sel(sample=pixel).to_dataframe()
-            _check_no_missing_times_in_time_series(df_native)
+            self.freq = _check_no_missing_times_in_time_series(df_native)
 
-            #  TODO: Include forecasted variables into dynamic
+            #  store times as float
+            times = df_native.index
+
+            # TODO: Include forecasted variables into dynamic
             # self.forecast_variables
             x_d = df_native[self.inputs].values
 
-            #  TODO: forecast horizons != 1
-            #  self.horizon
+            # TODO: forecast horizons != 1
+            # self.horizon
             y = df_native[self.target].values
 
             #  TODO: deal with static inputs
@@ -151,7 +161,7 @@ class XarrayDataset(Dataset):
 
             # store data if basin has at least ONE valid sample
             if valid_samples.size > 0:
-                self.store_data(pixel, x_d=x_d, y=y, x_s=x_s)
+                self.store_data(pixel, x_d=x_d, y=y, x_s=x_s, times=times)
             else:
                 pixels_without_samples.append(pixel)
 
@@ -179,4 +189,13 @@ class XarrayDataset(Dataset):
         if self.static_inputs is not None:
             data["x_s"] = torch.cat(self.x_s[pixel], dim=-1).float()
 
-        return data["x_d"], data["y"]
+        # metadata, store time as integer64 (TODO: why not float?)
+        # convert back to timestamp https://stackoverflow.com/a/47562725/9940782
+        # if self.mode in ["test", "validation"]:
+        time = self.times[pixel][index - self.seq_length + 1 : index + 1]
+        data["meta"] = {
+            "index": torch.from_numpy(np.array([idx]).reshape(-1, 1)).float(),
+            "target_time": torch.from_numpy(time).float(),
+        }
+
+        return data

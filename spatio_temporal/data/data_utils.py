@@ -2,7 +2,7 @@ import pandas as pd
 import xarray as xr
 import numpy as np
 from numba import njit, prange
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Union
 from sklearn_xarray import wrap
 from sklearn.preprocessing import StandardScaler
 
@@ -35,7 +35,7 @@ def _alternative_inf_freq(df, method="mode") -> pd.Timedelta:
     return result
 
 
-def _check_no_missing_times_in_time_series(df):
+def _check_no_missing_times_in_time_series(df) -> Union[str, pd.Timedelta]:
     assert (
         df.index.dtype == "datetime64[ns]"
     ), "Need the time index to be of type: datetime64[ns]"
@@ -54,6 +54,8 @@ def _check_no_missing_times_in_time_series(df):
         )
         == []
     ), f"Missing data"
+
+    return inf_freq
 
 
 def _stack_xarray(
