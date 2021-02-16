@@ -4,11 +4,12 @@ import pickle
 import xarray as xr
 from pathlib import Path
 from functools import partial
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple, Optional, Any, Union
 from tqdm import tqdm
 
 # pytorch imports
 import torch
+from torch import Tensor
 from torch.optim import Adam
 import torch.functional as F
 import torch.nn as nn
@@ -20,7 +21,7 @@ from spatio_temporal.config import Config
 from spatio_temporal.training.trainer import Trainer
 
 
-def _get_weight_file(cfg: Config, epoch: Optional[int] = None):
+def _get_weight_file(cfg: Config, epoch: Optional[int] = None) -> Path:
     """Get file path to weight file"""
     if epoch is None:
         weight_file = sorted(list(cfg.run_dir.glob("model_epoch*.pt")))[-1]
@@ -28,6 +29,53 @@ def _get_weight_file(cfg: Config, epoch: Optional[int] = None):
         weight_file = cfg.run_dir / f"model_epoch{str(epoch).zfill(3)}.pt"
 
     return weight_file
+
+
+def _create_dict_data_coords(
+    y_hat: Tensor, y: Tensor
+) -> Dict[str, Tuple[str, np.ndarray]]:
+    # a tuple of (dims, data) ready for xr.Dataset creation
+    #  TODO: forecast horizon ... ?
+    data = {}
+    data["obs"] = (("pixel", "time"), y.view(1, -1).detach().numpy())
+    data["sim"] = (("pixel", "time"), y_hat.view(1, -1).detach().numpy())
+    return data
+
+
+def convert_to_xarray(data: Dict[str, Union[Tensor, Any]], y_hat: Tensor) -> xr.Dataset:
+    # back convert to xarray object ...
+    data_xr = _create_dict_data_coords(y_hat=y_hat["y_hat"], y=data["y"])
+    index = int(data["meta"]["index"])
+    times = (
+        data["meta"]["target_time"].detach().numpy().astype("datetime64[ns]").squeeze()
+    )
+    pixel, _ = test_dl.dataset.lookup_table[int(index)]
+
+    ds = xr.Dataset(data_xr, coords={"time": times, "pixel": [pixel]})
+    return ds
+
+
+def unnormalize_ds(
+    dataloader: PixelDataLoader, ds: xr.Dataset, cfg: Config
+) -> xr.Dataset:
+    pixel = str(ds.pixel.values[0])
+    unnorm = test_dl.normalizer.individual_inverse(
+        ds, pixel_id=pixel, variable=cfg.target_variable
+    )
+    return unnorm
+
+
+def get_final_xarray(data: Dict[str, Union[Tensor, Any]], y_hat: Tensor, dataloader: PixelDataLoader, cfg: Config) -> xr.Dataset:
+    ds = convert_to_xarray(data=data, y_hat=y_hat)
+    # get the final prediction
+    ds = ds.isel(time=-1)
+    # unnormalize the data (output scale)
+    ds = unnormalize_ds(dataloader=test_dl, ds=ds, cfg=cfg)
+    # correct the formatting
+    if "sample" in ds.coords:
+        ds = ds.drop("sample")
+    ds = ds.expand_dims("time")
+    return ds
 
 
 def run_test(cfg: Config, test_dl: PixelDataLoader):
@@ -39,24 +87,25 @@ def run_test(cfg: Config, test_dl: PixelDataLoader):
     )
 
     weight_file = _get_weight_file(cfg)
+    epoch = int(weight_file.name.split(".")[0][-3:])
     model.load_state_dict(torch.load(weight_file, map_location=cfg.device))
-    
+
+    all_ds_predictions = []
     model.eval()
     with torch.no_grad():
         test_pbar = tqdm(test_dl, desc=f"Test set Forward Pass: ")
-        for x, y in test_pbar:
+        for data in test_pbar:
+            x, y = data["x_d"], data["y"]
             y_hat = model(x)
-            # back convert to xarray object ...
-            assert False
-            
-            # rescale predictions
-            # test_dl.normalizer.individual_inverse(data, pixel_id=pixel_id, variable=cfg.target_variable)
 
-            # create xarray object (sim, obs)
-            # _create_xarray(y_hat, y)
+            #  get the final prediction
+            _ds = get_final_xarray(data=data, y_hat=y_hat, dataloader=test_dl, cfg=cfg)
+            all_ds_predictions.append(_ds)
 
-            # save results
-            # _save_results(results, epoch)
+    print("... Merging all predictions to one xr.Dataset")
+    # merge and save results
+    preds = xr.merge(all_ds_predictions)
+    preds.to_netcdf(cfg.run_dir / f"test_predictions_E{str(epoch).zfill(3)}.nc")
 
 
 def train(cfg, train_dl, valid_dl, model):
@@ -74,12 +123,14 @@ def train(cfg, train_dl, valid_dl, model):
         train_loss = []
         #  batch the training data
         pbar = tqdm(train_dl, desc=f"Training Epoch {epoch}: ")
-        for x, y in pbar:
+        for data in pbar:
+            x, y = data["x_d"], data["y"]
             # forward pass
             y_hat = model(x)
 
-            # measure loss on all (test memory) or only on last (test_forecast)
-            loss = loss_fn(y_hat["y_hat"], y)
+            # measure loss on all (test memory)
+            # or only on last (test_forecast)
+            loss = loss_fn(y_hat["y_hat"][-1], y[-1])
 
             # backward pass
             loss.backward()
@@ -97,7 +148,7 @@ def train(cfg, train_dl, valid_dl, model):
             valid_loss = []
             for x_val, y_val in val_pbar:
                 y_hat_val = model(x_val)
-                val_loss = loss_fn(y_hat_val["y_hat"], y_val)
+                val_loss = loss_fn(y_hat_val["y_hat"][-1], y_val[-1])
                 valid_loss.append(val_loss.item())
 
         epoch_train_loss = np.mean(valid_loss)
@@ -130,12 +181,13 @@ if __name__ == "__main__":
         valid_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
             time=slice(cfg.validation_start_date, cfg.validation_end_date)
         )
-        
+
         # Get DataLoaders
         dl = train_dl = PixelDataLoader(train_ds, cfg=cfg, mode="train")
         valid_dl = PixelDataLoader(valid_ds, cfg=cfg, mode="validation")
 
     else:
+        # tester = Tester(cfg, ds)
         cfg = Config(cfg_path=Path("runs/test_1602_154323/config.yml"))
 
         test_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
@@ -144,7 +196,7 @@ if __name__ == "__main__":
 
         # Get DataLoaders
         dl = test_dl = PixelDataLoader(test_ds, cfg=cfg, mode="test")
-    
+
     # Settings
     seed = cfg.seed
     torch.manual_seed(seed)
@@ -160,4 +212,3 @@ if __name__ == "__main__":
         train(cfg, train_dl, valid_dl, model)
     else:
         run_test(cfg, test_dl)
-
