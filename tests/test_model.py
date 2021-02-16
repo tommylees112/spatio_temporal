@@ -28,7 +28,8 @@ class TestModels:
             hidden_size=cfg.hidden_size,
             output_size=dl.output_size,
         )
-        x, y = dl.__iter__().__next__()
+        data = dl.__iter__().__next__()
+        x, y = data["x_d"], data["y"]
         y_hat = model(x)
 
         assert all(np.isin(["h_n", "c_n", "y_hat"], [k for k in y_hat.keys()]))
@@ -49,7 +50,8 @@ class TestModels:
             ds, mode="train", cfg=cfg, num_workers=1, batch_size=batch_size,
         )
 
-        x, y = dl.__iter__().__next__()
+        data = dl.__iter__().__next__()
+        x, y = data["x_d"], data["y"]
 
         # are we working with batches or individual predictions?
         x = x.unsqueeze(0) if x.ndim == 2 else x
@@ -63,7 +65,8 @@ class TestModels:
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
         loss_obj = F.mse_loss
         before = model.forward(x)
-        for input, target in tqdm(dl):
+        for data in tqdm(dl):
+            input, target = data["x_d"], data["y"]
             optimizer.zero_grad()
             yhat = model.forward(input)
             loss = loss_obj(yhat["y_hat"], target)

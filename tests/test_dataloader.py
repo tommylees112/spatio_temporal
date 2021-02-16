@@ -20,7 +20,8 @@ from spatio_temporal.data.dataloader import (
 from spatio_temporal.data.data_utils import _stack_xarray
 from spatio_temporal.config import Config
 
-TEST_REAL_DATA = False
+TEST_REAL_DATA = True
+
 
 class TestDataLoader:
     def test_stack_xarray(self):
@@ -64,7 +65,8 @@ class TestDataLoader:
         )
         seq_length = 10
         for i in range(10):
-            x, y = ds.__getitem__(i)
+            data = ds.__getitem__(i)
+            x, y = data["x_d"], data["y"]
 
             assert y.shape == (seq_length, 1)
             assert x.shape == (
@@ -86,14 +88,14 @@ class TestDataLoader:
         seq_length = 10
         autoregressive = cfg.autoregressive
         data = next(iter(dl))
-        assert len(data) == 2, "Expected X, y samples, len == 2"
+        x, y = data["x_d"], data["y"]
         n_inputs = len(["features"]) + 1 if autoregressive else len(["features"])
 
-        assert data[0].shape == (
+        assert x.shape == (
             batch_size,
             seq_length,
             n_inputs,
-        ), f"Size Mismatch! Expected: {(batch_size, seq_length, n_inputs)} Got: {data[0].shape}"
+        ), f"Size Mismatch! Expected: {(batch_size, seq_length, n_inputs)} Got: {x.shape}"
 
     def test_1D_data(self, tmp_path):
         # convert pandas to xarray object
@@ -105,7 +107,8 @@ class TestDataLoader:
             ds, cfg=cfg, num_workers=1, mode="train", batch_size=cfg.batch_size
         )
 
-        x, y = dl.__iter__().__next__()
+        data = dl.__iter__().__next__()
+        x, y = data["x_d"], data["y"]
 
         assert x.shape == (cfg.batch_size, cfg.seq_length, len(cfg.input_variables))
         assert y.shape == (cfg.batch_size, cfg.seq_length, 1)
@@ -121,20 +124,23 @@ class TestDataLoader:
             )
 
             data = dl.__iter__().__next__()
+            x, y = data["x_d"], data["y"]
 
             batch_size = 256
             seq_length = 10
             input_variables = ["precip", "t2m", "SMsurf"]
             autoregressive = True
-            n_inputs = len(input_variables) + 1 if autoregressive else len(input_variables)
+            n_inputs = (
+                len(input_variables) + 1 if autoregressive else len(input_variables)
+            )
 
             assert cfg.batch_size == batch_size
             assert cfg.autoregressive == autoregressive
-            assert data[0].shape == (
+            assert x.shape == (
                 batch_size,
                 seq_length,
                 n_inputs,
-            ), f"X Data Mismatch! Expected: {(batch_size, seq_length, n_inputs)} Got: {data[0].shape}"
+            ), f"X Data Mismatch! Expected: {(batch_size, seq_length, n_inputs)} Got: {x.shape}"
         else:
             pass
 
@@ -143,23 +149,34 @@ class TestDataLoader:
             ds = xr.open_dataset("data/ALL_dynamic_ds.nc")
             cfg = Config(Path("tests/testconfigs/config_runoff.yml"))
             create_and_assign_temp_run_path_to_config(cfg, tmp_path)
-            
+
             # train period
             train_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
                 time=slice(cfg.train_start_date, cfg.train_end_date)
             )
-            train_dl = PixelDataLoader(train_ds, cfg=cfg, mode="train", num_workers=4, batch_size=cfg.batch_size)
-            
-            # check data is loaded properly
-            x, y = next(iter(train_dl))
-            n_in_vars = len(cfg.input_variables) + 1 if cfg.autoregressive else len(cfg.input_variables)
+            train_dl = PixelDataLoader(
+                train_ds,
+                cfg=cfg,
+                mode="train",
+                num_workers=4,
+                batch_size=cfg.batch_size,
+            )
+
+            #  check data is loaded properly
+            data = next(iter(train_dl))
+            x, y = data["x_d"], data["y"]
+
+            n_in_vars = (
+                len(cfg.input_variables) + 1
+                if cfg.autoregressive
+                else len(cfg.input_variables)
+            )
             assert x.shape == (cfg.batch_size, cfg.seq_length, n_in_vars)
             assert y.shape == (cfg.batch_size, cfg.seq_length, 1)
         else:
             pass
 
-
-    def test_sine_wave_example():
+    def test_sine_wave_example(self):
         #  create_sin_with_different_phases()
         pass
 
@@ -171,7 +188,9 @@ class TestDataLoader:
         dl = PixelDataLoader(
             ds, cfg=cfg, num_workers=1, mode="train", batch_size=cfg.batch_size
         )
-        x, y = dl.__iter__().__next__()
+        data = dl.__iter__().__next__()
+        x, y = data["x_d"], data["y"]
+
         assert y.shape == (cfg.batch_size, cfg.seq_length, cfg.horizon)
         assert False
 

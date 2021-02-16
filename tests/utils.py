@@ -84,8 +84,13 @@ def download_test_jena_data(data_dir: Path = Path("data")) -> None:
     df.to_csv(data_dir / "jena_climate_2009_2016.csv")
 
 
-def load_test_jena_data_as_dataset() -> xr.Dataset:
+def get_jena_data() -> pd.DataFrame:
     df = pd.read_csv("data/test_jena_weather.csv")
+    return df
+
+
+def load_test_jena_data_as_dataset() -> xr.Dataset:
+    df = get_jena_data()
     df["time"] = pd.to_datetime(df["time"])
     df = df.rename({"sample": "pixel"}, axis=1).set_index(["time", "pixel"])
     ds = df.to_xarray()
