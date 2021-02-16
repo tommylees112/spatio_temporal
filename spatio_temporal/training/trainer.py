@@ -2,17 +2,64 @@ from datetime import datetime
 from pathlib import Path
 import torch
 from spatio_temporal.config import Config
+import random
+import numpy as np
+from typing import Optional
+import xarray as xr
+# from spatio_temporal.training.base_trainer import BaseTrainer
 
 
 class Trainer:
-    def __init__(self, cfg: Config):
+    def __init__(self, cfg: Config, ds: xr.Dataset):
         self.cfg = cfg
+        # set / use the run directory
         self._create_folder_structure()
         self.model = None
         self.optimizer = None
+        self.device = cfg.device
 
+        #  set random seeds
+        self._set_random_seeds()
         # dump config file
+        self.cfg.dump_config(self.cfg.run_dir)
+
+        #  initialise dataloaders
         # train epochs
+
+    def initialise_data(ds, mode: str = "train"):
+        # Train test split
+        if mode == "train":
+            # train period
+            train_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
+                time=slice(cfg.train_start_date, cfg.train_end_date)
+            )
+            self.train_dl = PixelDataLoader(train_ds, cfg=cfg, mode="train")
+
+            #  validation period
+            valid_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
+                time=slice(cfg.validation_start_date, cfg.validation_end_date)
+            )
+            self.valid_dl = PixelDataLoader(valid_ds, cfg=cfg, mode="validation")
+
+            self.normalizer = self.train_dl.normalizer
+        else:
+            # test period
+            test_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
+                time=slice(cfg.test_start_date, cfg.test_end_date)
+            )
+            self.test_dl = PixelDataLoader(
+                test_ds, cfg=cfg, mode="test", normalizer=self.normalizer
+            )
+
+    def _set_random_seeds(self):
+        if self.cfg.seed is None:
+            self.cfg.seed = int(np.random.uniform(low=0, high=1e6))
+
+        # fix random seeds for various packages
+        random.seed(self.cfg.seed)
+        np.random.seed(self.cfg.seed)
+        torch.cuda.manual_seed(self.cfg.seed)
+        torch.manual_seed(self.cfg.seed)
 
     def _create_folder_structure(self):
         run_name = self._create_datetime_folder_name()
@@ -40,13 +87,12 @@ class Trainer:
         optimizer_path = self.cfg.run_dir / f"optimizer_state_epoch{epoch:03d}.pt"
         torch.save(self.optimizer.state_dict(), str(optimizer_path))
 
-    #
-    def _get_weight_file(self, epoch: int):
+    def _get_weight_file(self, epoch: Optional[int]):
         """Get file path to weight file"""
         if epoch is None:
-            weight_file = sorted(list(self.run_dir.glob("model_epoch*.pt")))[-1]
+            weight_file = sorted(list(self.cfg.run_dir.glob("model_epoch*.pt")))[-1]
         else:
-            weight_file = self.run_dir / f"model_epoch{str(epoch).zfill(3)}.pt"
+            weight_file = self.cfg.run_dir / f"model_epoch{str(epoch).zfill(3)}.pt"
 
         return weight_file
 
