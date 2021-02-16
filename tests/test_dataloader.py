@@ -10,9 +10,7 @@ from spatio_temporal.data.dataloader import (
     XarrayDataset,
     PixelDataLoader,
 )
-from spatio_temporal.data.data_utils import (
-    _stack_xarray
-)
+from spatio_temporal.data.data_utils import _stack_xarray
 from spatio_temporal.config import Config
 
 
@@ -45,7 +43,11 @@ class TestDataLoader:
         ds = XarrayDataset(raw_ds, cfg=cfg, mode="train")
 
         assert ds.target == target_variable
-        assert ds.inputs == input_variables + ["autoregressive"] if cfg.autoregressive else input_variables
+        assert (
+            ds.inputs == input_variables + ["autoregressive"]
+            if cfg.autoregressive
+            else input_variables
+        )
 
         x_features = (
             len(input_variables) + 1 if cfg.autoregressive else len(input_variables)
@@ -63,7 +65,9 @@ class TestDataLoader:
     def test_dataloader(self):
         ds = _make_dataset()
         cfg = Config(Path("tests/testconfigs/test_config.yml"))
-        dl = PixelDataLoader(ds, cfg=cfg, num_workers=1, mode="train", batch_size=cfg.batch_size)
+        dl = PixelDataLoader(
+            ds, cfg=cfg, num_workers=1, mode="train", batch_size=cfg.batch_size
+        )
 
         assert dl.batch_size == cfg.batch_size
 
@@ -84,7 +88,9 @@ class TestDataLoader:
         ds = pickle.load(Path("data/kenya.pkl").open("rb"))
         cfg = Config(Path("tests/testconfigs/config.yml"))
 
-        dl = PixelDataLoader(ds, cfg=cfg, num_workers=1, mode="train", batch_size=cfg.batch_size)
+        dl = PixelDataLoader(
+            ds, cfg=cfg, num_workers=1, mode="train", batch_size=cfg.batch_size
+        )
 
         data = dl.__iter__().__next__()
 
@@ -93,7 +99,7 @@ class TestDataLoader:
         input_variables = ["precip", "t2m", "SMsurf"]
         autoregressive = False
         n_inputs = len(input_variables) + 1 if autoregressive else len(input_variables)
-        
+
         assert cfg.batch_size == batch_size
         assert cfg.autoregressive == autoregressive
         assert data[0].shape == (

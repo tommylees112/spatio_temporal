@@ -4,10 +4,11 @@ from spatio_temporal.config import Config
 
 
 class TestTrainer:
-    def test_trainer(self):
+    def test_trainer(self, tmp_path: Path):
         cfg = Config(Path("tests/testconfigs/config.yml"))
+        cfg.run_dir = tmp_path
         Trainer(cfg=cfg)
-        assert False, "Move data from "
+        assert False, "Check where the run_dir is created"
 
 
 class TestTester:

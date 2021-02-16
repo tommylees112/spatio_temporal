@@ -41,11 +41,7 @@ class TestModels:
         cfg = Config(Path("tests/testconfigs/config.yml"))
 
         dl = PixelDataLoader(
-            ds,
-            mode="train",
-            cfg=cfg,
-            num_workers=1,
-            batch_size=batch_size,
+            ds, mode="train", cfg=cfg, num_workers=1, batch_size=batch_size,
         )
 
         x, y = dl.__iter__().__next__()

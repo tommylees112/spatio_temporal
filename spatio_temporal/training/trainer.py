@@ -21,7 +21,7 @@ class Trainer:
         else:
             self.cfg.run_dir = self.cfg.run_dir / run_name
 
-        self.cfg.run_dir.mkdir(parents=True)
+        self.cfg.run_dir.mkdir(parents=True, exist_ok=True)
 
     def _create_datetime_folder_name(self) -> str:
         now = datetime.now()
