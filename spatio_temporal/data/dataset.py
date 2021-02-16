@@ -49,7 +49,10 @@ class XarrayDataset(Dataset):
         self.target: str = self.cfg.target_variable
 
         # TODO: allow static inputs
-        self.static_inputs = False
+        self.static_inputs = cfg.static_inputs
+
+        # TODO: allow forecast variables
+        self.forecast_variables = self.cfg.forecast_variables
 
         ds: xr.Dataset = stacked
         ds = self.run_normalisation(ds)
@@ -97,7 +100,7 @@ class XarrayDataset(Dataset):
     ):
         self.x_d[pixel] = x_d
         self.y[pixel] = y
-        if self.static_inputs:
+        if self.static_inputs is not None:
             self.x_s[pixel] = x_s
 
     def create_lookup_table(self, ds):
@@ -108,12 +111,18 @@ class XarrayDataset(Dataset):
         for pixel in tqdm(ds.sample.values, desc="Loading Data: "):
             df_native = ds.sel(sample=pixel).to_dataframe()
             _check_no_missing_times_in_time_series(df_native)
+
+            # TODO: Include forecasted variables into dynamic
+            # self.forecast_variables
             x_d = df_native[self.inputs].values
+
+            # TODO: forecast horizons != 1
+            # self.horizon
             y = df_native[self.target].values
 
             #  TODO: deal with static inputs
-            if self.static_inputs:
-                #  index = pixel; columns = variables
+            if self.static_inputs is not None:
+                # index = pixel; columns = variables
                 x_s = df_static.loc[pixel, self.static_inputs].values
             else:
                 x_s = None
@@ -152,7 +161,7 @@ class XarrayDataset(Dataset):
             self.y[pixel][index - self.seq_length + 1 : index + 1].reshape(-1, 1)
         ).float()
 
-        if self.static_inputs:
+        if self.static_inputs is not None:
             data["x_s"] = torch.cat(self.x_s[pixel], dim=-1).float()
 
         return data["x_d"], data["y"]
