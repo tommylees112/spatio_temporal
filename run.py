@@ -142,11 +142,21 @@ def train(cfg, train_dl, valid_dl, model):
 
         epoch_train_loss = np.mean(train_loss)
 
+        # SAVE epoch results
+        weight_path = cfg.run_dir / f"model_epoch{epoch:03d}.pt"
+        torch.save(model.state_dict(), str(weight_path))
+
+        # SAVE epoch results
+        optimizer_path = cfg.run_dir / f"optimizer_state_epoch{epoch:03d}.pt"
+        torch.save(optimizer.state_dict(), str(optimizer_path))
+
+        # TODO: early stopping
         # batch the validation data each epoch
         val_pbar = tqdm(valid_dl, desc=f"Validation Epoch {epoch}: ")
         with torch.no_grad():
             valid_loss = []
-            for x_val, y_val in val_pbar:
+            for data in val_pbar:
+                x_val, y_val = data["x_d"], data["y"]
                 y_hat_val = model(x_val)
                 val_loss = loss_fn(y_hat_val["y_hat"][-1], y_val[-1])
                 valid_loss.append(val_loss.item())
@@ -154,16 +164,8 @@ def train(cfg, train_dl, valid_dl, model):
         epoch_train_loss = np.mean(valid_loss)
         print(f"Valid Loss: {np.sqrt(np.mean(valid_loss)):.2f}")
 
-        # SAVE epoch results
-        weight_path = cfg.run_dir / f"model_epoch{epoch:03d}.pt"
-        torch.save(model.state_dict(), str(weight_path))
-
-        optimizer_path = cfg.run_dir / f"optimizer_state_epoch{epoch:03d}.pt"
-        torch.save(optimizer.state_dict(), str(optimizer_path))
-
-
 if __name__ == "__main__":
-    TRAIN = False
+    TRAIN = True
     data_dir = Path("data")
     run_dir = Path("runs")
 
@@ -206,7 +208,7 @@ if __name__ == "__main__":
         input_size=dl.input_size,
         hidden_size=cfg.hidden_size,
         output_size=dl.output_size,
-    )
+    ).to(cfg.device)
 
     if TRAIN:
         train(cfg, train_dl, valid_dl, model)

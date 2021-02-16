@@ -102,3 +102,16 @@ class Trainer:
         weight_file = self._get_weight_file(epoch)
 
         self.model.load_state_dict(torch.load(weight_file, map_location=self.device))
+
+    def _set_device(self):
+        if self.cfg.device is not None:
+            if self.cfg.device.startswith("cuda"):
+                gpu_id = int(self.cfg.device.split(':')[-1])
+                if gpu_id > torch.cuda.device_count():
+                    raise RuntimeError(f"This machine does not have GPU #{gpu_id} ")
+                else:
+                    self.device = torch.device(self.cfg.device)
+            else:
+                self.device = torch.device("cpu")
+        else:
+            self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

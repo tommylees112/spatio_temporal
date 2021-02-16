@@ -60,7 +60,7 @@ class TestModels:
             input_size=dl.input_size,
             hidden_size=hidden_size,
             output_size=dl.output_size,
-        ).float()
+        ).float().to(cfg.device)
 
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
         loss_obj = F.mse_loss

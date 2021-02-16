@@ -53,6 +53,7 @@ class XarrayDataset(Dataset):
         self.seq_length: int = self.cfg.seq_length
         self.inputs: List[str] = self.cfg.input_variables
         self.target: str = self.cfg.target_variable
+        self.device = self.cfg.device
 
         # TODO: allow static inputs
         self.static_inputs = cfg.static_inputs
@@ -181,21 +182,21 @@ class XarrayDataset(Dataset):
         data = {}
         data["x_d"] = torch.from_numpy(
             self.x_d[pixel][index - self.seq_length + 1 : index + 1]
-        ).float()
+        ).float().to(self.device)
         data["y"] = torch.from_numpy(
             self.y[pixel][index - self.seq_length + 1 : index + 1].reshape(-1, 1)
-        ).float()
+        ).float().to(self.device)
 
         if self.static_inputs is not None:
-            data["x_s"] = torch.cat(self.x_s[pixel], dim=-1).float()
+            data["x_s"] = torch.cat(self.x_s[pixel], dim=-1).float().to(self.device)
 
         # metadata, store time as integer64 (TODO: why not float?)
         # convert back to timestamp https://stackoverflow.com/a/47562725/9940782
         # if self.mode in ["test", "validation"]:
         time = self.times[pixel][index - self.seq_length + 1 : index + 1]
         data["meta"] = {
-            "index": torch.from_numpy(np.array([idx]).reshape(-1, 1)).float(),
-            "target_time": torch.from_numpy(time).float(),
+            "index": torch.from_numpy(np.array([idx]).reshape(-1, 1)).float().to(self.device),
+            "target_time": torch.from_numpy(time).float().to(self.device),
         }
 
         return data
