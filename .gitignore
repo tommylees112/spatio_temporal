@@ -7,3 +7,8 @@ tensorboard
 configs/
 bin
 data/kenya.pkl
+*.pyc
+data/__pycache__
+**/__pycache__
+*.cpython*
+runs/
