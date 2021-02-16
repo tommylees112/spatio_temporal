@@ -35,7 +35,13 @@ class XarrayDataset(Dataset):
         autoregressive (bool, optional): Whether to include the target as input (shifted +1). Defaults to False.
     """
 
-    def __init__(self, data: xr.Dataset, cfg: Config, mode: str):
+    def __init__(
+        self,
+        data: xr.Dataset,
+        cfg: Config,
+        mode: str,
+        normalizer: Optional[Normalizer] = None,
+    ):
         self.cfg = cfg
         #  TODO: how to keep track of metadata
         # stack pixel_dims to one dimension ("sample")
@@ -55,7 +61,7 @@ class XarrayDataset(Dataset):
         self.forecast_variables = self.cfg.forecast_variables
 
         ds: xr.Dataset = stacked
-        ds = self.run_normalisation(ds)
+        ds = self.run_normalisation(ds, normalizer=normalizer)
 
         # add autoregressive variable
         if cfg.autoregressive:
@@ -78,16 +84,25 @@ class XarrayDataset(Dataset):
         # 3. Store y, x_d, x_s
         self.create_lookup_table(ds)
 
-    def run_normalisation(self, ds, collapse_dims: List[str] = ["time"]) -> xr.Dataset:
+    def run_normalisation(
+        self,
+        ds,
+        collapse_dims: List[str] = ["time"],
+        normalizer: Optional[Normalizer] = None,
+    ) -> xr.Dataset:
         if self.mode == "train":
             self.normalizer = Normalizer(fit_ds=ds, collapse_dims=collapse_dims)
             pickle.dump(
                 self.normalizer, (self.cfg.run_dir / "normalizer.pkl").open("wb")
             )
         else:
-            self.normalizer = pickle.load(
-                (self.cfg.run_dir / "normalizer.pkl").open("rb")
-            )
+            if normalizer is None:
+                self.normalizer = pickle.load(
+                    (self.cfg.run_dir / "normalizer.pkl").open("rb")
+                )
+            else:
+                self.normalizer = normalizer
+
             ds = self.normalizer.transform(ds)
         return ds
 
