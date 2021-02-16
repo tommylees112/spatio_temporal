@@ -47,7 +47,7 @@ num_workers: 4
 
 # --- Data Configurations ---------------------------------------------------------------------------
 # Path to data set root
-data_dir: data/kenya.pkl
+data_dir: data/
 
 target_variable: target
 

@@ -42,10 +42,6 @@ class Config:
         self._cfg = self._read_config(cfg_path)
         self._check_all_mandatory()
 
-    def _check_all_mandatory(self):
-        for key in self._mandatory_keys:
-            self.get_mandatory_attrs(key)
-
     def _read_config(self, cfg_path: Path):
         if cfg_path.exists():
             with cfg_path.open("r") as fp:
@@ -58,39 +54,56 @@ class Config:
 
         return cfg
 
-    def dump_config(self, folder: Path, filename: str = "config.yml"):
+    def _check_all_mandatory(self):
+        for key in self._mandatory_keys:
+            self.get_mandatory_attrs(key)
 
+    def _inverse_transform_cfg_types(self) -> Dict[str, str]:
+        """Convert the self._cfg back to strings for dumping to .yml file
+
+        Returns:
+            Dict[str, str]: Config file with str, str 
+        """
+        temp_cfg = {}
+        for key, val in self._cfg.items():
+            #  convert Path objects to str
+            if any([key.endswith(x) for x in ["_dir", "_path", "_file", "_files"]]):
+                if isinstance(val, list):
+                    temp_list = []
+                    for elem in val:
+                        temp_list.append(str(elem))
+                    temp_cfg[key] = temp_list
+                else:
+                    temp_cfg[key] = str(val)
+
+            # convert pd.Timsestamp objects to str
+            elif key.endswith("_date"):
+                if isinstance(val, list):
+                    temp_list = []
+                    for elem in val:
+                        temp_list.append(elem.strftime(format="%d/%m/%Y"))
+                    temp_cfg[key] = temp_list
+                else:
+                    # Ignore None's due to e.g. using a per_basin_period_file
+                    if isinstance(val, pd.Timestamp):
+                        temp_cfg[key] = val.strftime(format="%d/%m/%Y")
+            else:
+                temp_cfg[key] = val
+        return temp_cfg
+
+    def _write_all_non_supplied_defaults_to_dict(self) -> None:
+        # ensure that defaults are in the keys
+        for key in self._defaults.keys():
+            if not key in [l for l in self._cfg.keys()]:
+                # write the default to self._cfg
+                self.get_property_with_defaults(key)
+
+    def dump_config(self, folder: Path, filename: str = "config.yml"):
         cfg_path = folder / filename
         if not cfg_path.exists():
+            self._write_all_non_supplied_defaults_to_dict()
             with cfg_path.open("w") as fp:
-                temp_cfg = {}
-                for key, val in self._cfg.items():
-                    #  convert Path objects to str
-                    if any(
-                        [key.endswith(x) for x in ["_dir", "_path", "_file", "_files"]]
-                    ):
-                        if isinstance(val, list):
-                            temp_list = []
-                            for elem in val:
-                                temp_list.append(str(elem))
-                            temp_cfg[key] = temp_list
-                        else:
-                            temp_cfg[key] = str(val)
-
-                    # convert pd.Timsestamp objects to str
-                    elif key.endswith("_date"):
-                        if isinstance(val, list):
-                            temp_list = []
-                            for elem in val:
-                                temp_list.append(elem.strftime(format="%d/%m/%Y"))
-                            temp_cfg[key] = temp_list
-                        else:
-                            # Ignore None's due to e.g. using a per_basin_period_file
-                            if isinstance(val, pd.Timestamp):
-                                temp_cfg[key] = val.strftime(format="%d/%m/%Y")
-                    else:
-                        temp_cfg[key] = val
-
+                temp_cfg = self._inverse_transform_cfg_types()
                 yaml = YAML()
                 yaml.dump(dict(OrderedDict(sorted(temp_cfg.items()))), fp)
         else:
