@@ -17,7 +17,7 @@ class TestModels:
         ds = pickle.load(Path("data/kenya.pkl").open("rb"))
         cfg = Config(Path("tests/testconfigs/config.yml"))
 
-        dl = PixelDataLoader(ds, cfg=cfg,)
+        dl = PixelDataLoader(ds, cfg=cfg, mode="train")
 
         model = LSTM(
             input_size=dl.input_size,
@@ -33,21 +33,19 @@ class TestModels:
         torch.manual_seed(1)
         np.random.seed(1)
 
-        ds = pickle.load(Path("data/kenya.pkl").open("rb"))
         batch_size = 30
         seq_length = 10
         input_variables = ["precip", "t2m", "SMsurf"]
         hidden_size = 64
+        ds = pickle.load(Path("data/kenya.pkl").open("rb"))
+        cfg = Config(Path("tests/testconfigs/config.yml"))
 
         dl = PixelDataLoader(
             ds,
-            target_variable="boku_VCI",
-            input_variables=input_variables,
-            pixel_dims=["lat", "lon"],
+            mode="train",
+            cfg=cfg,
             num_workers=1,
-            seq_length=seq_length,
             batch_size=batch_size,
-            autoregressive=True,
         )
 
         x, y = dl.__iter__().__next__()
@@ -85,5 +83,3 @@ class TestModels:
         assert (
             loss_af < loss_bf
         ), "The model did not learn anything after one epoch of training"
-
-        assert False

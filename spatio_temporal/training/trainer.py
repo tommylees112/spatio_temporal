@@ -13,7 +13,6 @@ class Trainer:
 
         # dump config file
         # train epochs
-        #
 
     def _create_folder_structure(self):
         run_name = self._create_datetime_folder_name()

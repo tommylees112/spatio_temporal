@@ -1,14 +1,38 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+**/__pycache__/
+*.cpython*
+
+# Unit test / coverage reports
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+.tox 
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# Misc stuff
 .vscode
 lightning_logs
-.pytest_cache
-.mypy_cache
-*normalizer*.pkl
 tensorboard
+
+# Project specifics
+*normalizer*.pkl
 configs/
-bin
-data/kenya.pkl
-*.pyc
-data/__pycache__
-**/__pycache__
-*.cpython*
 runs/
+bin/
+data/kenya.pkl
