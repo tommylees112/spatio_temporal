@@ -61,13 +61,13 @@ class Config:
         for key in self._mandatory_keys:
             self.get_mandatory_attrs(key)
 
-    def _inverse_transform_cfg_types(self) -> Dict[str, str]:
+    def _inverse_transform_cfg_types(self) -> Dict[Any, Union[str, List[str]]]:
         """Convert the self._cfg back to strings for dumping to .yml file
 
         Returns:
             Dict[str, str]: Config file with str, str 
         """
-        temp_cfg = {}
+        temp_cfg: Dict[Any, Union[str, List[str]]] = {}
         for key, val in self._cfg.items():
             #  convert Path objects to str
             if any([key.endswith(x) for x in ["_dir", "_path", "_file", "_files"]]):
@@ -165,6 +165,7 @@ class Config:
                 cfg[key] = temp_list
             else:
                 cfg[key] = pd.to_datetime(val, format="%d/%m/%Y")
+        return cfg
 
     @property
     def data_dir(self) -> Path:
@@ -180,10 +181,6 @@ class Config:
     @property
     def batch_size(self) -> int:
         return self.get_mandatory_attrs("batch_size")
-
-    @property
-    def data_dir(self) -> Path:
-        return self.get_mandatory_attrs("data_dir")
 
     @property
     def input_variables(self) -> Union[List[str], Dict[str, List[str]]]:
@@ -252,6 +249,14 @@ class Config:
     def run_dir(self, folder: Path):
         self._cfg["run_dir"] = folder
 
+    @property
+    def seed(self) -> int:
+        return self.get_property_with_defaults("seed")
+
+    @seed.setter
+    def seed(self, seed: int):
+        self._cfg["seed"] = seed
+
     #  --------------------------------------------------
     #  - Properties with defaults -----------------------
     #  --------------------------------------------------
@@ -266,10 +271,6 @@ class Config:
     @property
     def num_workers(self) -> int:
         return self.get_property_with_defaults("num_workers")
-
-    @property
-    def seed(self) -> int:
-        return self.get_property_with_defaults("seed")
 
     @property
     def device(self) -> str:
