@@ -27,6 +27,7 @@ profile_default/
 ipython_config.py
 
 # Misc stuff
+.DS_Store
 .vscode
 lightning_logs
 tensorboard
