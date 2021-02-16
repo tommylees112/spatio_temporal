@@ -31,7 +31,7 @@ class Normalizer:
     def transform(self, ds) -> xr.Dataset:
         return (ds - self.mean_) / self.std_
 
-    def inverse_transform(self, ds) -> xr.Dataset:
+    def inverse_transform(self, ds: xr.Dataset) -> xr.Dataset:
         return (ds * self.std_) + self.mean_
 
     def individual_inverse(
