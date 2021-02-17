@@ -8,7 +8,7 @@ Two methods for making this more maintainable in the future are:
 1) Write a dataloader class as a Pull Request to `neuralhydrology`
 1) Create a standalone package that inherits most behaviour from `neuralhydrology` but with differences as explained here
 
-## Creating the environment to work with the package
+## Creating the environment to work with the code
 NOTE: Requires [`miniconda`](https://docs.conda.io/en/latest/miniconda.html)
 ```bash
 conda create -n ml --yes python=3.7
