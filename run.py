@@ -6,6 +6,7 @@ from pathlib import Path
 from functools import partial
 from typing import Dict, Tuple, Optional, Any, Union
 from tqdm import tqdm
+import argparse
 
 # pytorch imports
 import torch
@@ -21,6 +22,28 @@ from spatio_temporal.model.linear_regression import LinearRegression
 from spatio_temporal.config import Config
 from spatio_temporal.training.trainer import Trainer
 from spatio_temporal.model.losses import RMSELoss
+from tests.utils import create_linear_ds
+
+
+def _get_args() -> dict:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("mode", choices=["train", "evaluate"])
+    parser.add_argument("--config_file", type=str)
+    parser.add_argument("--run_dir", type=str)
+
+    # parse args from user input
+    args = vars(parser.parse_args())
+
+    if (args["mode"] == "evaluate") and (args["run_dir"] is None):
+        raise ValueError("Missing path to run directory")
+
+    return args
+
+
+def _set_seeds(cfg):
+    seed = cfg.seed
+    torch.manual_seed(seed)
+    np.random.seed(seed)
 
 
 def _save_epoch_information(run_dir: Path, epoch: int, model, optimizer) -> None:
@@ -162,6 +185,8 @@ def train_and_validate(
             y_hat = model(x)
 
             # measure loss on forecasts
+            if not (y_hat["y_hat"].ndim == y.ndim):
+                y = y.squeeze(0)
             loss = loss_fn(y_hat["y_hat"], y)
 
             # backward pass (get gradients, step optimizer, delete old gradients)
@@ -200,15 +225,21 @@ def train_and_validate(
 
 
 if __name__ == "__main__":
-    TRAIN = False
-    data_dir = Path("data")
-    run_dir = Path("runs")
+    args = _get_args()
+    mode = args["mode"]
+    config_file = Path(args["config_file"])
 
-    ds = pickle.load((data_dir / "kenya.pkl").open("rb"))
+    assert config_file.exists(), f"Expect config file at {config_file}"
 
-    if TRAIN:
-        cfg = Config(cfg_path=Path("configs/config.yml"))
-        cfg.run_dir = run_dir
+    #  load data
+    # data_dir = Path("data")
+    # ds = pickle.load((data_dir / "kenya.pkl").open("rb"))
+    # ds = ds.isel(lat=slice(0, 10), lon=slice(0, 10))
+    ds = create_linear_ds()
+
+    #  Run Training and Evaluation
+    if mode == "train":
+        cfg = Config(cfg_path=config_file)
         trainer = Trainer(cfg, ds)
 
         # Train test split
@@ -223,9 +254,10 @@ if __name__ == "__main__":
         dl = train_dl = PixelDataLoader(train_ds, cfg=cfg, mode="train")
         valid_dl = PixelDataLoader(valid_ds, cfg=cfg, mode="validation")
 
+    #  Run Evaluation only
     else:
         #  tester = Tester(cfg, ds)
-        test_dir = Path("runs/test_kenya_1702_144610")
+        test_dir = Path(args["run_dir"])
         cfg = Config(cfg_path=test_dir / "config.yml")
 
     test_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
@@ -235,10 +267,8 @@ if __name__ == "__main__":
     # Get DataLoaders
     dl = test_dl = PixelDataLoader(test_ds, cfg=cfg, mode="test")
 
-    # Settings
-    seed = cfg.seed
-    torch.manual_seed(seed)
-    np.random.seed(seed)
+    # set seeds (reproducibility)
+    _set_seeds(cfg)
 
     # TODO: def get_model from lookup: Dict[str, Model]
     # model = LSTM(
@@ -257,9 +287,9 @@ if __name__ == "__main__":
     print(model)
     print()
 
-    if TRAIN:
+    if mode == "train":
         train_and_validate(cfg, train_dl, valid_dl, model)
         run_test(cfg, test_dl, model)
-    else:
+    elif mode == "evaluate":
         # RUN TEST !
         run_test(cfg, test_dl, model)
