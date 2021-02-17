@@ -38,3 +38,4 @@ class PixelDataLoader(DataLoader):
         self.mode = mode
         self.normalizer = dataset.normalizer
         self.freq = dataset.freq
+        self.horizon = dataset.horizon

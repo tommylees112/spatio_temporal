@@ -3,19 +3,7 @@ import xarray as xr
 import numpy as np
 from numba import njit, prange
 from typing import List, Tuple, Optional, Union
-from sklearn_xarray import wrap
-from sklearn.preprocessing import StandardScaler
-
-
-def normalise_dataset(ds: xr.Dataset, scaler: Optional[StandardScaler] = None):
-    if scaler is None:
-        # 'train' mode
-        scaler = StandardScaler()
-        scaler = wrap(scaler).fit(ds).estimator
-
-    norm_ds = wrap(scaler).transform(ds)
-    assert False
-    return scaler, norm_ds
+from torch import Tensor
 
 
 def _alternative_inf_freq(df, method="mode") -> pd.Timedelta:
@@ -76,7 +64,11 @@ def _stack_xarray(
 
 @njit
 def validate_samples(
-    x_d: List[np.ndarray], x_s: List[np.ndarray], y: List[np.ndarray], seq_length: int
+    x_d: List[np.ndarray],
+    x_s: List[np.ndarray],
+    y: List[np.ndarray],
+    seq_length: int,
+    forecast_horizon: int,
 ) -> np.ndarray:
     n_samples = len(y)
     flag = np.ones(n_samples)
@@ -88,6 +80,11 @@ def validate_samples(
             flag[sample_idx] = 0
             continue
 
+        #  5. not enough data for forecast horizon
+        if n_samples < (sample_idx + forecast_horizon + 1):
+            flag[sample_idx] = 0
+            continue
+
         #  2. NaN in the dynamic inputs
         _x_d = x_d[sample_idx - seq_length + 1 : sample_idx + 1]
         if np.any(np.isnan(_x_d)):
@@ -96,12 +93,13 @@ def validate_samples(
 
         #  3. NaN in the outputs (only for training period)
         if y is not None:
-            _y = y[sample_idx - seq_length + 1 : sample_idx + 1]
+            _y = y[sample_idx : sample_idx + 1 + forecast_horizon]
+
             if np.any(np.isnan(y)):
                 flag[sample_idx] = 0
                 continue
 
-        # any NaN in the static features makes the sample_idx invalid
+        # 4. any NaN in the static features makes the sample_idx invalid
         if x_s is not None:
             _x_s = x_s[sample_idx]
             if np.any(np.isnan(_x_s)):

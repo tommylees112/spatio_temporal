@@ -27,6 +27,7 @@ class TestModels:
             input_size=dl.input_size,
             hidden_size=cfg.hidden_size,
             output_size=dl.output_size,
+            forecast_horizon=dl.horizon,
         )
         data = dl.__iter__().__next__()
         x, y = data["x_d"], data["y"]
@@ -34,20 +35,17 @@ class TestModels:
 
         assert all(np.isin(["h_n", "c_n", "y_hat"], [k for k in y_hat.keys()]))
 
-    def test_single_train(self, tmp_path):
+    def test_single_train_step(self, tmp_path):
         torch.manual_seed(1)
         np.random.seed(1)
 
-        batch_size = 30
-        seq_length = 10
-        input_variables = ["precip", "t2m", "SMsurf"]
         hidden_size = 64
         ds = pickle.load(Path("data/kenya.pkl").open("rb"))
         cfg = Config(Path("tests/testconfigs/config.yml"))
         create_and_assign_temp_run_path_to_config(cfg, tmp_path)
 
         dl = PixelDataLoader(
-            ds, mode="train", cfg=cfg, num_workers=1, batch_size=batch_size,
+            ds, mode="train", cfg=cfg, num_workers=1, batch_size=cfg.batch_size,
         )
 
         data = dl.__iter__().__next__()
@@ -61,6 +59,7 @@ class TestModels:
                 input_size=dl.input_size,
                 hidden_size=hidden_size,
                 output_size=dl.output_size,
+                forecast_horizon=dl.horizon,
             )
             .float()
             .to(cfg.device)
@@ -73,6 +72,10 @@ class TestModels:
             input, target = data["x_d"], data["y"]
             optimizer.zero_grad()
             yhat = model.forward(input)
+            #  shape = (batch_size, (horizon + current time)ll)
+            assert yhat["y_hat"].shape == (cfg.batch_size, (cfg.horizon), 1)
+
+            # get the final predictions to calculate loss
             loss = loss_obj(yhat["y_hat"], target)
             loss.backward()
             optimizer.step()
@@ -84,9 +87,9 @@ class TestModels:
         loss_af = loss_obj(after["y_hat"], y)
 
         # NOTE: the LSTM only returns the final hidden and cell state layer NOT each timestep
-        #  TODO: why is the LSTM returning a hidden array of shape (seq_length, 1, hs)
-        assert before["h_n"].shape == (seq_length, 1, hidden_size)
-        assert before["y_hat"].shape == (batch_size, seq_length, 1)
+        # TODO: why is the LSTM returning a hidden array of shape (seq_length, 1, hs)
+        assert before["h_n"].shape == (1, cfg.batch_size, hidden_size)
+        assert before["y_hat"].shape == (cfg.batch_size, 1 if cfg.horizon == 0 else cfg.horizon, 1)
 
         assert (
             loss_af < loss_bf

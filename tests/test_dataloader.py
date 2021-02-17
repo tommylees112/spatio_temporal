@@ -47,32 +47,36 @@ class TestDataLoader:
         target_variable = "target"
         input_variables = ["feature"]
         pixel_dims = ["lat", "lon"]
-        cfg = Config(Path("tests/testconfigs/test_config.yml"))
+        for path in [
+            Path("tests/testconfigs/test_config_simulate.yml"),
+            Path("tests/testconfigs/test_config.yml"),
+        ]:
+            cfg = Config(path)
 
-        create_and_assign_temp_run_path_to_config(cfg, tmp_path)
-        raw_ds = _make_dataset()
-        ds = XarrayDataset(raw_ds, cfg=cfg, mode="train")
+            create_and_assign_temp_run_path_to_config(cfg, tmp_path)
+            raw_ds = _make_dataset()
+            ds = XarrayDataset(raw_ds, cfg=cfg, mode="train")
 
-        assert ds.target == target_variable
-        assert (
-            ds.inputs == input_variables + ["autoregressive"]
-            if cfg.autoregressive
-            else input_variables
-        )
+            assert ds.target == target_variable
+            assert (
+                ds.inputs == input_variables + ["autoregressive"]
+                if cfg.autoregressive
+                else input_variables
+            )
 
-        x_features = (
-            len(input_variables) + 1 if cfg.autoregressive else len(input_variables)
-        )
-        seq_length = 10
-        for i in range(10):
-            data = ds.__getitem__(i)
-            x, y = data["x_d"], data["y"]
+            x_features = (
+                len(input_variables) + 1 if cfg.autoregressive else len(input_variables)
+            )
+            seq_length = 10
+            for i in range(10):
+                data = ds.__getitem__(i)
+                x, y = data["x_d"], data["y"]
 
-            assert y.shape == (seq_length, 1)
-            assert x.shape == (
-                seq_length,
-                x_features,
-            ), f"Shape Mismatch! Expect: {(seq_length, x_features)} Got: {x.shape}"
+                assert y.shape == (1 if cfg.horizon == 0 else cfg.horizon, 1)
+                assert x.shape == (
+                    seq_length,
+                    x_features,
+                ), f"Shape Mismatch! Expect: {(seq_length, x_features)} Got: {x.shape}"
 
     def test_dataloader(self, tmp_path):
         ds = _make_dataset()
@@ -111,7 +115,7 @@ class TestDataLoader:
         x, y = data["x_d"], data["y"]
 
         assert x.shape == (cfg.batch_size, cfg.seq_length, len(cfg.input_variables))
-        assert y.shape == (cfg.batch_size, cfg.seq_length, 1)
+        assert y.shape == (cfg.batch_size, cfg.horizon, 1)
 
     def test_kenya_data(self, tmp_path):
         if TEST_REAL_DATA:
@@ -124,7 +128,7 @@ class TestDataLoader:
             )
 
             data = dl.__iter__().__next__()
-            x, y = data["x_d"], data["y"]
+            x, _ = data["x_d"], data["y"]
 
             batch_size = 256
             seq_length = 10
@@ -172,7 +176,7 @@ class TestDataLoader:
                 else len(cfg.input_variables)
             )
             assert x.shape == (cfg.batch_size, cfg.seq_length, n_in_vars)
-            assert y.shape == (cfg.batch_size, cfg.seq_length, 1)
+            assert y.shape == (cfg.batch_size, cfg.horizon, 1)
         else:
             pass
 
@@ -189,10 +193,9 @@ class TestDataLoader:
             ds, cfg=cfg, num_workers=1, mode="train", batch_size=cfg.batch_size
         )
         data = dl.__iter__().__next__()
-        x, y = data["x_d"], data["y"]
+        _, y = data["x_d"], data["y"]
 
-        assert y.shape == (cfg.batch_size, cfg.seq_length, cfg.horizon)
-        assert False
+        assert y.shape == (cfg.batch_size, cfg.horizon, 1)
 
     def test_static_inputs(self, tmp_path):
         ds = _make_dataset()

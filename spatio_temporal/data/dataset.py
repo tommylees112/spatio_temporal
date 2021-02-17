@@ -48,6 +48,7 @@ class XarrayDataset(Dataset):
         stacked, sample = _stack_xarray(data, self.cfg.pixel_dims)
 
         self.mode = mode
+        self.is_train = self.mode == "train"
         self.sample: xr.Dataset = sample
         self.batch_dim: str = "sample"
         self.seq_length: int = self.cfg.seq_length
@@ -64,16 +65,20 @@ class XarrayDataset(Dataset):
         ds: xr.Dataset = stacked
         ds = self.run_normalisation(ds, normalizer=normalizer)
 
+        # information for building models
+        self.horizon = cfg.horizon
+        self.output_size = self.horizon
+
         # add autoregressive variable
         if cfg.autoregressive:
-            auto = stacked[self.target].shift(time=1).rename("autoregressive")
+            assert (
+                self.horizon > 0
+            ), "Cannot include autoregressive information if simulating current timestep. Use a horizon of 1 instead."
+            auto = stacked[self.target].rename("autoregressive")
             self.inputs = self.inputs + ["autoregressive"]
             ds = xr.merge([ds, auto])
 
         self.input_size = len(self.inputs)
-        #  TODO: work with multiple time horizons (1, ..., h)
-        self.horizon = cfg.horizon
-        self.output_size = 1  # self.horizon
 
         # init dictionaries to store the RAW pixel timeseries
         self.x_d: Dict[str, np.ndarray] = {}
@@ -140,10 +145,13 @@ class XarrayDataset(Dataset):
 
             # TODO: Include forecasted variables into dynamic
             # self.forecast_variables
-            x_d = df_native[self.inputs].values
 
-            # TODO: forecast horizons != 1
-            # self.horizon
+            #  Shift values one timestep to ensure no leakage
+            if self.horizon > 0:
+                x_d = df_native[self.inputs].shift(1).values
+            else:
+                x_d = df_native[self.inputs].values
+
             y = df_native[self.target].values
 
             #  TODO: deal with static inputs
@@ -154,7 +162,13 @@ class XarrayDataset(Dataset):
                 x_s = None
 
             # checks inputs and outputs for each sequence. valid: flag = 1, invalid: flag = 0
-            flag = validate_samples(x_d, x_s, y, seq_length=self.seq_length)
+            flag = validate_samples(
+                x_d=x_d,
+                x_s=x_s,
+                y=y if self.is_train else None,
+                seq_length=self.seq_length,
+                forecast_horizon=self.horizon,
+            )
 
             # store lookups with Pixel_ID and Index for that valid sample
             valid_samples = np.argwhere(flag == 1)
@@ -178,29 +192,31 @@ class XarrayDataset(Dataset):
     def __getitem__(self, idx: int) -> Dict[str, Tensor]:
         pixel, index = self.lookup_table[idx]
         index = int(index)
-
         data = {}
+
+        #  Get input/output data
         x_d = (
             torch.from_numpy(self.x_d[pixel][index - self.seq_length + 1 : index + 1])
             .float()
             .to(self.device)
         )
-        y = (
-            torch.from_numpy(
-                self.y[pixel][index - self.seq_length + 1 : index + 1].reshape(-1, 1)
-            )
-            .float()
-            .to(self.device)
-        )
+        # get target for current : horizon
+        if self.horizon == 0:
+            #  simulate the current timestep
+            y_ = self.y[pixel][index].reshape(-1, 1)
+        else:
+            #  forecast the next timestep
+            y_ = self.y[pixel][index : index + self.horizon].reshape(-1, 1)
+
+        y = torch.from_numpy(y_).float().to(self.device)
 
         if self.static_inputs is not None:
             x_s = torch.cat(self.x_s[pixel], dim=-1).float().to(self.device)
         else:
             x_s = torch.from_numpy(np.array([])).float().to(self.device)
 
-        # metadata, store time as integer64 (TODO: why not float?)
+        # metadata, store time as integer64
         # convert back to timestamp https://stackoverflow.com/a/47562725/9940782
-        # if self.mode in ["test", "validation"]:
         time = (
             torch.from_numpy(self.times[pixel][index - self.seq_length + 1 : index + 1])
             .float()

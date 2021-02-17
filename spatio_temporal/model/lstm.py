@@ -12,6 +12,7 @@ class LSTM(nn.Module):
         input_size: int,
         hidden_size: int,
         output_size: int,
+        forecast_horizon: int,
         learning_rate: float = 1e-3,
         dropout_rate: float = 0.4,
     ):
@@ -21,6 +22,7 @@ class LSTM(nn.Module):
         self.hidden_size = hidden_size
         self.input_size = input_size
         self.output_size = output_size
+        self.forecast_horizon = forecast_horizon
         self.dropout = nn.Dropout(p=dropout_rate)
 
         #  LSTM cell
@@ -47,6 +49,9 @@ class LSTM(nn.Module):
                 nn.init.kaiming_uniform_(dense_layer.weight.data)
                 nn.init.constant_(dense_layer.bias.data, 0)
 
+    def _return_forecast_times(self, y_hat):
+        return y_hat[:, -(self.forecast_horizon) :, :]
+
     def forward(self, data):
         """
         Returns
@@ -57,19 +62,20 @@ class LSTM(nn.Module):
                 - `h_n`: hidden state at the last time step of the sequence of shape [batch size, 1, hidden size].
                 - `c_n`: cell state at the last time step of the sequence of shape [batch size, 1, hidden size].
         """
-        # transpose to [seq_length, batch_size, n_features]
-        x_d = data.transpose(0, 1)
+        # input = [batch_size, seq_length, n_features]
+        x_d = data
 
         # if 'x_s' in data:
         #     x_s = data['x_s'].unsqueeze(0).repeat(x_d.shape[0], 1, 1)
 
+        #  output = (batch_size, seq_length, hidden_size)
         lstm_output, (h_n, c_n) = self.lstm(input=x_d)
 
-        # reshape to [batch_size, 1, n_hiddens]
-        y_hat = self.head(self.dropout(lstm_output.transpose(0, 1)))
+        # output = [batch_size, seq_length, 1]
+        y_hat = self.head(self.dropout(lstm_output))
 
-        h_n = h_n.transpose(0, 1)
-        c_n = c_n.transpose(0, 1)
+        # only return the predictions for the self.forecast_horizon
+        y_hat = self._return_forecast_times(y_hat)
 
         pred = {"h_n": h_n, "c_n": c_n, "y_hat": y_hat}
         return pred
