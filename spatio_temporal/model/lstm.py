@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import numpy as np
 import torch.optim as optim
-import pytorch_lightning as pl
 from spatio_temporal.model.base_lightning import BaseModel
 
 
@@ -13,7 +12,6 @@ class LSTM(nn.Module):
         hidden_size: int,
         output_size: int,
         forecast_horizon: int,
-        learning_rate: float = 1e-3,
         dropout_rate: float = 0.4,
     ):
         super().__init__()
@@ -39,6 +37,9 @@ class LSTM(nn.Module):
         self.initialize_weights()
 
     def initialize_weights(self):
+        # We are initializing the weights here with Xavier initialisation
+        #  (by multiplying with 1/sqrt(n))
+        # http://proceedings.mlr.press/v9/glorot10a/glorot10a.pdf
         sqrt_k = np.sqrt(1 / self.hidden_size)
         for parameters in self.lstm.parameters():
             for pam in parameters:
@@ -50,7 +51,9 @@ class LSTM(nn.Module):
                 nn.init.constant_(dense_layer.bias.data, 0)
 
     def _return_forecast_times(self, y_hat):
-        return y_hat[:, -(self.forecast_horizon) :, :]
+        # [batch_size, seq_length, forecast_horizon]
+        #  forecast_horizon = number of target timesteps
+        return y_hat[:, -1:, :]
 
     def forward(self, data):
         """
@@ -67,15 +70,15 @@ class LSTM(nn.Module):
 
         # if 'x_s' in data:
         #     x_s = data['x_s'].unsqueeze(0).repeat(x_d.shape[0], 1, 1)
+        #     # concatenate onto x_d
 
         #  output = (batch_size, seq_length, hidden_size)
         lstm_output, (h_n, c_n) = self.lstm(input=x_d)
 
         # output = [batch_size, seq_length, 1]
+        # only return the predictions from the final step in sequence_length
         y_hat = self.head(self.dropout(lstm_output))
-
-        # only return the predictions for the self.forecast_horizon
-        y_hat = self._return_forecast_times(y_hat)
+        y_hat = y_hat[:, -1:, :]
 
         pred = {"h_n": h_n, "c_n": c_n, "y_hat": y_hat}
         return pred
