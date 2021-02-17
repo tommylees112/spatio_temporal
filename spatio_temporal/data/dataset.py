@@ -165,7 +165,7 @@ class XarrayDataset(Dataset):
             flag = validate_samples(
                 x_d=x_d,
                 x_s=x_s,
-                y=y if self.is_train else None,
+                y=y,
                 seq_length=self.seq_length,
                 forecast_horizon=self.horizon,
             )
