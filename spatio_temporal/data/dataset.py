@@ -204,9 +204,11 @@ class XarrayDataset(Dataset):
         if self.horizon == 0:
             #  simulate the current timestep
             y_ = self.y[pixel][index].reshape(-1, 1)
+            time_ = self.times[pixel][index]
         else:
             #  forecast the next timestep
             y_ = self.y[pixel][index : index + self.horizon].reshape(-1, 1)
+            time_ = self.times[pixel][index : index + self.horizon]
 
         y = torch.from_numpy(y_).float().to(self.device)
 
@@ -217,11 +219,7 @@ class XarrayDataset(Dataset):
 
         # metadata, store time as integer64
         # convert back to timestamp https://stackoverflow.com/a/47562725/9940782
-        time = (
-            torch.from_numpy(self.times[pixel][index - self.seq_length + 1 : index + 1])
-            .float()
-            .to(self.device)
-        )
+        time = torch.from_numpy(time_).float().to(self.device)
         index = torch.from_numpy(np.array([idx]).reshape(-1)).float().to(self.device)
 
         # write output dictionary

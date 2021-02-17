@@ -42,13 +42,16 @@ def _create_dict_data_coords(
     return data
 
 
-def convert_to_xarray(data: Dict[str, Union[Tensor, Any]], y_hat: Tensor) -> xr.Dataset:
+def convert_to_xarray(
+    data: Dict[str, Union[Tensor, Any]], y_hat: Tensor, forecast_horizon: int
+) -> xr.Dataset:
     # back convert to xarray object ...
     data_xr = _create_dict_data_coords(y_hat=y_hat["y_hat"], y=data["y"])
     index = int(data["meta"]["index"])
     times = (
         data["meta"]["target_time"].detach().numpy().astype("datetime64[ns]").squeeze()
     )
+    times = times.reshape(-1) if times.ndim == 0 else times
     pixel, _ = test_dl.dataset.lookup_table[int(index)]
 
     ds = xr.Dataset(data_xr, coords={"time": times, "pixel": [pixel]})
@@ -71,15 +74,13 @@ def get_final_xarray(
     dataloader: PixelDataLoader,
     cfg: Config,
 ) -> xr.Dataset:
-    ds = convert_to_xarray(data=data, y_hat=y_hat)
-    #  get the final prediction
-    ds = ds.isel(time=-1)
+    begin_idx = cfg.horizon if cfg.horizon > 0 else 1
+    ds = convert_to_xarray(data=data, y_hat=y_hat, forecast_horizon=cfg.horizon)
     #  unnormalize the data (output scale)
     ds = unnormalize_ds(dataloader=test_dl, ds=ds, cfg=cfg)
     #  correct the formatting
     if "sample" in ds.coords:
         ds = ds.drop("sample")
-    ds = ds.expand_dims("time")
     return ds
 
 
@@ -89,6 +90,7 @@ def run_test(cfg: Config, test_dl: PixelDataLoader):
         input_size=test_dl.input_size,
         hidden_size=cfg.hidden_size,
         output_size=test_dl.output_size,
+        forecast_horizon=test_dl.horizon,
     )
 
     weight_file = _get_weight_file(cfg)
@@ -138,6 +140,7 @@ def train(cfg, train_dl, valid_dl, model):
             loss = loss_fn(y_hat["y_hat"][-1], y[-1])
 
             # backward pass
+            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
@@ -166,12 +169,13 @@ def train(cfg, train_dl, valid_dl, model):
                 val_loss = loss_fn(y_hat_val["y_hat"][-1], y_val[-1])
                 valid_loss.append(val_loss.item())
 
-        epoch_train_loss = np.mean(valid_loss)
-        print(f"Valid Loss: {np.sqrt(np.mean(valid_loss)):.2f}")
+        epoch_valid_loss = np.mean(valid_loss)
+        print(f"Train Loss: {np.sqrt(epoch_train_loss):.2f}")
+        print(f"Valid Loss: {np.sqrt(epoch_valid_loss):.2f}")
 
 
 if __name__ == "__main__":
-    TRAIN = True
+    TRAIN = False
     data_dir = Path("data")
     run_dir = Path("runs")
 
@@ -196,14 +200,14 @@ if __name__ == "__main__":
 
     else:
         #  tester = Tester(cfg, ds)
-        cfg = Config(cfg_path=Path("runs/test_1602_154323/config.yml"))
+        cfg = Config(cfg_path=Path("runs/test_kenya_1702_122739/config.yml"))
 
-        test_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
-            time=slice(cfg.test_start_date, cfg.test_end_date)
-        )
+    test_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
+        time=slice(cfg.test_start_date, cfg.test_end_date)
+    )
 
-        # Get DataLoaders
-        dl = test_dl = PixelDataLoader(test_ds, cfg=cfg, mode="test")
+    # Get DataLoaders
+    dl = test_dl = PixelDataLoader(test_ds, cfg=cfg, mode="test")
 
     # Settings
     seed = cfg.seed
@@ -214,9 +218,11 @@ if __name__ == "__main__":
         input_size=dl.input_size,
         hidden_size=cfg.hidden_size,
         output_size=dl.output_size,
+        forecast_horizon=dl.horizon,
     ).to(cfg.device)
 
     if TRAIN:
         train(cfg, train_dl, valid_dl, model)
+        run_test(cfg, test_dl)
     else:
         run_test(cfg, test_dl)
