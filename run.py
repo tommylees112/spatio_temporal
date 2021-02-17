@@ -22,6 +22,16 @@ from spatio_temporal.config import Config
 from spatio_temporal.training.trainer import Trainer
 
 
+def _save_epoch_information(run_dir: Path, epoch: int, model, optimizer) -> None:
+    # SAVE model weights
+    weight_path = run_dir / f"model_epoch{epoch:03d}.pt"
+    torch.save(model.state_dict(), str(weight_path))
+
+    # SAVE optimizer state dict
+    optimizer_path = run_dir / f"optimizer_state_epoch{epoch:03d}.pt"
+    torch.save(optimizer.state_dict(), str(optimizer_path))
+
+
 def _get_weight_file(cfg: Config, epoch: Optional[int] = None) -> Path:
     """Get file path to weight file"""
     if epoch is None:
@@ -75,7 +85,6 @@ def get_final_xarray(
     dataloader: PixelDataLoader,
     cfg: Config,
 ) -> xr.Dataset:
-    begin_idx = cfg.horizon if cfg.horizon > 0 else 1
     ds = convert_to_xarray(data=data, y_hat=y_hat, forecast_horizon=cfg.horizon)
     #  unnormalize the data (output scale)
     ds = unnormalize_ds(dataloader=test_dl, ds=ds, cfg=cfg)
@@ -85,15 +94,7 @@ def get_final_xarray(
     return ds
 
 
-def run_test(cfg: Config, test_dl: PixelDataLoader):
-    # RUN TEST !
-    model = LSTM(
-        input_size=test_dl.input_size,
-        hidden_size=cfg.hidden_size,
-        output_size=test_dl.output_size,
-        forecast_horizon=test_dl.horizon,
-    )
-
+def run_test(cfg: Config, test_dl: PixelDataLoader, model):
     weight_file = _get_weight_file(cfg)
     epoch = int(weight_file.name.split(".")[0][-3:])
     model.load_state_dict(torch.load(weight_file, map_location=cfg.device))
@@ -116,33 +117,57 @@ def run_test(cfg: Config, test_dl: PixelDataLoader):
     preds.to_netcdf(cfg.run_dir / f"test_predictions_E{str(epoch).zfill(3)}.nc")
 
 
-def train(cfg, train_dl, valid_dl, model):
-    # TODO: move as much of this as possible to the Trainer object!
-    # get loss & optimizer
+def _get_loss_obj(cfg: Config):
     if cfg.loss == "MSE":
         loss_fn = nn.MSELoss()
+    if cfg.loss == "RMSE":
 
+        def RMSELoss(yhat, y):
+            return torch.sqrt(F.mse_loss(yhat, y))
+
+        loss_fn = RMSELoss
+
+    return loss_fn
+
+
+def _get_optimizer(cfg: Config):
     if cfg.optimizer == "Adam":
         optimizer = torch.optim.Adam(
             [pam for pam in model.parameters()], lr=cfg.learning_rate
         )
+    return optimizer
 
-    for epoch in range(cfg.n_epochs):
+
+def train_and_validate(cfg: Config, train_dl:PixelDataLoader, valid_dl:PixelDataLoader, model):
+    # TODO: move as much of this as possible to the Trainer object!
+    # get loss & optimizer
+    loss_fn = _get_loss_obj(cfg)
+    optimizer = _get_optimizer(cfg)
+
+    for epoch in range(1, cfg.n_epochs + 1):
+        model.train()
         train_loss = []
+
         #  batch the training data
         pbar = tqdm(train_dl, desc=f"Training Epoch {epoch}: ")
         for data in pbar:
             x, y = data["x_d"], data["y"]
+            
             # forward pass
             y_hat = model(x)
 
             # measure loss on forecasts
             loss = loss_fn(y_hat["y_hat"], y)
 
-            # backward pass
+            # backward pass (get gradients, step optimizer, delete old gradients)
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
+
+            if cfg.clip_gradient_norm is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    model.parameters(), cfg.clip_gradient_norm
+                )
 
             # memorize the training loss
             train_loss.append(loss.item())
@@ -150,13 +175,8 @@ def train(cfg, train_dl, valid_dl, model):
 
         epoch_train_loss = np.mean(train_loss)
 
-        # SAVE model weights
-        weight_path = cfg.run_dir / f"model_epoch{epoch:03d}.pt"
-        torch.save(model.state_dict(), str(weight_path))
-
-        # SAVE optimizer state dict
-        optimizer_path = cfg.run_dir / f"optimizer_state_epoch{epoch:03d}.pt"
-        torch.save(optimizer.state_dict(), str(optimizer_path))
+        # Save epoch weights
+        _save_epoch_information(cfg.run_dir, epoch, model=model, optimizer=optimizer)
 
         #  TODO: early stopping
         # batch the validation data each epoch
@@ -175,7 +195,7 @@ def train(cfg, train_dl, valid_dl, model):
 
 
 if __name__ == "__main__":
-    TRAIN = True
+    TRAIN = False
     data_dir = Path("data")
     run_dir = Path("runs")
 
@@ -200,7 +220,8 @@ if __name__ == "__main__":
 
     else:
         #  tester = Tester(cfg, ds)
-        cfg = Config(cfg_path=Path("runs/test_kenya_1702_122739/config.yml"))
+        test_dir = Path("runs/test_kenya_1702_144610")
+        cfg = Config(cfg_path=test_dir / "config.yml")
 
     test_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
         time=slice(cfg.test_start_date, cfg.test_end_date)
@@ -227,8 +248,13 @@ if __name__ == "__main__":
         forecast_horizon=cfg.horizon,
     ).to(cfg.device)
 
+    print("-- Working with model: --")
+    print(model)
+    print()
+
     if TRAIN:
-        train(cfg, train_dl, valid_dl, model)
-        run_test(cfg, test_dl)
+        train_and_validate(cfg, train_dl, valid_dl, model)
+        run_test(cfg, test_dl, model)
     else:
-        run_test(cfg, test_dl)
+        # RUN TEST !
+        run_test(cfg, test_dl, model)
