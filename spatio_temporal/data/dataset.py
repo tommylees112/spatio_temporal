@@ -41,6 +41,7 @@ class XarrayDataset(Dataset):
         cfg: Config,
         mode: str,
         normalizer: Optional[Normalizer] = None,
+        DEBUG: bool = False,
     ):
         self.cfg = cfg
         #  TODO: how to keep track of metadata
@@ -64,6 +65,9 @@ class XarrayDataset(Dataset):
 
         ds: xr.Dataset = stacked
         ds = self.run_normalisation(ds, normalizer=normalizer)
+        if DEBUG:
+            # save the stacked dataset to memory to check dataloading
+            self.ds = ds
 
         # information for building models
         self.horizon = cfg.horizon
@@ -206,7 +210,7 @@ class XarrayDataset(Dataset):
             y_ = self.y[pixel][index].reshape(-1, 1)
             time_ = self.times[pixel][index]
         else:
-            #  forecast the next timestep
+            #  forecast the next `self.horizon` timesteps
             y_ = self.y[pixel][index : index + self.horizon].reshape(-1, 1)
             time_ = self.times[pixel][index : index + self.horizon]
 
@@ -219,6 +223,7 @@ class XarrayDataset(Dataset):
 
         # metadata, store time as integer64
         # convert back to timestamp https://stackoverflow.com/a/47562725/9940782
+        time_ = np.array(time_) if not isinstance(time_, np.ndarray) else time_
         time = torch.from_numpy(time_).float().to(self.device)
         index = torch.from_numpy(np.array([idx]).reshape(-1)).float().to(self.device)
 
