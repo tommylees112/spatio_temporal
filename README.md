@@ -31,6 +31,17 @@ ipython --pdb run.py train  -- --config_file tests/testconfigs/run_test_config.y
 
 Current output :sad:
 ```
+Loading Data: 100%|███████████████████████████████████████████████████████████████████████████████████████████| 100/100 [00:00<00:00, 105.80it/s]
+Loading Data: 100%|███████████████████████████████████████████████████████████████████████████████████████████| 100/100 [00:00<00:00, 641.40it/s]
+Loading Data: 100%|███████████████████████████████████████████████████████████████████████████████████████████| 100/100 [00:00<00:00, 510.73it/s]
+-- Working with model: --
+LinearRegression(
+  (dropout): Dropout(p=0, inplace=False)
+)
+
+Training Epoch 1: 100%|████████████████████████████████████████████████████████████████████████| 15300/15300 [00:06<00:00, 2502.46it/s, 23706.79]
+Validation Epoch 1:   0%|                                                                                               | 0/3300 [00:00<?, ?it/s]/Users/tommylees/miniconda3/envs/ml/lib/python3.8/site-packages/torch/nn/modules/loss.py:446: UserWarning: Using a target size (torch.Size([1, 1])) that is different to the input size (torch.Size([1])). This will likely lead to incorrect results due to broadcasting. Please ensure they have the same size.
+  return F.mse_loss(input, target, reduction=self.reduction)
 Validation Epoch 1: 100%|██████████████████████████████████████████████████████████████████████████████████| 3300/3300 [00:00<00:00, 7339.99it/s]
 Train Loss: 117.65
 Valid Loss: 29.41
