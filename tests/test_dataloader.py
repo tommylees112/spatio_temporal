@@ -24,6 +24,7 @@ TEST_REAL_DATA = True
 
 
 class TestDataLoader:
+    # TODO: TEST FOR scrambled labels / mixing the features and timesteps axes / things like this
     def test_stack_xarray(self):
         ds = _make_dataset()
         stacked, sample = _stack_xarray(ds, spatial_coords=["lat", "lon"])
@@ -42,6 +43,29 @@ class TestDataLoader:
 
         # check that can recreate original dataset
         # check that works on 1D data too ...
+
+    def test_correct_data_returned(self, tmp_path):
+        ds = _make_dataset()
+        cfg = Config(Path("tests/testconfigs/test_config.yml"))
+        create_and_assign_temp_run_path_to_config(cfg, tmp_path)
+        dl = PixelDataLoader(ds, cfg=cfg, mode="train", DEBUG=True)
+        data = dl.__iter__().__next__()
+        x, y = data["x_d"], data["y"]
+
+        stacked_ds = dl.dataset.ds
+        pixel, _ = dl.dataset.lookup_table[int(data["meta"]["index"])]
+
+        # check that the returned data is valid
+        target_time = pd.to_datetime(np.array(data["meta"]["target_time"]).astype("datetime64[ns]").flatten()[0])
+        input_data_times = pd.to_datetime(stacked_ds.time.values)
+        target_time_idx = input_data_times.get_loc(target_time, method="nearest")
+        min_input_time = input_data_times[target_time_idx - cfg.seq_length]
+        
+        expected_x_feature = stacked_ds.sel(sample=pixel, time=slice(min_input_time, target_time)).to_array().values.T
+        x_feature = np.array(x)
+        x_feature = x_feature.reshape(expected_x_feature.shape)
+
+        assert np.allclose(x_feature, expected_x_feature)
 
     def test_dataset(self, tmp_path):
         target_variable = "target"
@@ -77,6 +101,8 @@ class TestDataLoader:
                     seq_length,
                     x_features,
                 ), f"Shape Mismatch! Expect: {(seq_length, x_features)} Got: {x.shape}"
+
+        assert False, "Test the metadata returned too, data['meta']['time']"
 
     def test_dataloader(self, tmp_path):
         ds = _make_dataset()

@@ -31,5 +31,8 @@ class LinearRegression(nn.Module):
 
     def forward(self, data):
         x_d = data
+        
+        # flatten all inputs
+        x_d = x_d.view(-1, self.input_size)
 
         return self.linear_model(x=x_d)

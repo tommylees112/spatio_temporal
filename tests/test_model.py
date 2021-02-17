@@ -22,17 +22,18 @@ class TestModels:
         ds = _make_dataset()
         cfg = Config(Path("tests/testconfigs/test_config.yml"))
         create_and_assign_temp_run_path_to_config(cfg, tmp_path)
-        dl = PixelDataLoader(ds, cfg=cfg, mode="train")
+        dl = PixelDataLoader(ds, cfg=cfg, mode="train", DEBUG=True)
 
         model = LinearRegression(
-            input_size=dl.input_size,
+            input_size=dl.input_size * cfg.seq_length,
             output_size=dl.output_size,
             forecast_horizon=dl.horizon,
         )
         data = dl.__iter__().__next__()
-        x, y = data["x_d"], data["y"]
+        x, _ = data["x_d"], data["y"]
         y_hat = model(x)
-        assert False
+
+        assert y_hat.shape == (1, cfg.horizon if cfg.horizon > 0 else 1)
 
     def test_lstm_forward_pass(self, tmp_path):
         ds = pickle.load(Path("data/kenya.pkl").open("rb"))
