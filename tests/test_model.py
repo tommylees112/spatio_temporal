@@ -56,11 +56,15 @@ class TestModels:
         # are we working with batches or individual predictions?
         x = x.unsqueeze(0) if x.ndim == 2 else x
 
-        model = LSTM(
-            input_size=dl.input_size,
-            hidden_size=hidden_size,
-            output_size=dl.output_size,
-        ).float().to(cfg.device)
+        model = (
+            LSTM(
+                input_size=dl.input_size,
+                hidden_size=hidden_size,
+                output_size=dl.output_size,
+            )
+            .float()
+            .to(cfg.device)
+        )
 
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
         loss_obj = F.mse_loss

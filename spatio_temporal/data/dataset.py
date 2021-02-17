@@ -180,23 +180,43 @@ class XarrayDataset(Dataset):
         index = int(index)
 
         data = {}
-        data["x_d"] = torch.from_numpy(
-            self.x_d[pixel][index - self.seq_length + 1 : index + 1]
-        ).float().to(self.device)
-        data["y"] = torch.from_numpy(
-            self.y[pixel][index - self.seq_length + 1 : index + 1].reshape(-1, 1)
-        ).float().to(self.device)
+        x_d = (
+            torch.from_numpy(self.x_d[pixel][index - self.seq_length + 1 : index + 1])
+            .float()
+            .to(self.device)
+        )
+        y = (
+            torch.from_numpy(
+                self.y[pixel][index - self.seq_length + 1 : index + 1].reshape(-1, 1)
+            )
+            .float()
+            .to(self.device)
+        )
 
         if self.static_inputs is not None:
-            data["x_s"] = torch.cat(self.x_s[pixel], dim=-1).float().to(self.device)
+            x_s = torch.cat(self.x_s[pixel], dim=-1).float().to(self.device)
+        else:
+            x_s = None
 
         # metadata, store time as integer64 (TODO: why not float?)
         # convert back to timestamp https://stackoverflow.com/a/47562725/9940782
         # if self.mode in ["test", "validation"]:
-        time = self.times[pixel][index - self.seq_length + 1 : index + 1]
-        data["meta"] = {
-            "index": torch.from_numpy(np.array([idx]).reshape(-1, 1)).float().to(self.device),
-            "target_time": torch.from_numpy(time).float().to(self.device),
+        time = (
+            torch.from_numpy(self.times[pixel][index - self.seq_length + 1 : index + 1])
+            .float()
+            .to(self.device)
+        )
+        index = torch.from_numpy(np.array([idx]).reshape(-1)).float().to(self.device)
+
+        # write output dictionary
+        meta = {
+            "index": index,
+            "target_time": time,
         }
+
+        data["x_d"] = x_d
+        data["y"] = y
+        data["meta"] = meta
+        data["x_s"] = x_s
 
         return data

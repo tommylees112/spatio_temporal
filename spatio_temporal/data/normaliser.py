@@ -9,7 +9,7 @@ class Normalizer:
         self, fit_ds: Optional[xr.Dataset] = None, collapse_dims: List[str] = ["time"]
     ):
         # if "sample" in fit_ds.data_vars:
-            # fit_ds = fit_ds.rename({"sample": "pixel"})
+        # fit_ds = fit_ds.rename({"sample": "pixel"})
         if fit_ds is not None:
             # 'train' mode
             self.fit(fit_ds, collapse_dims=collapse_dims)

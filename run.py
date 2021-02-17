@@ -65,13 +65,18 @@ def unnormalize_ds(
     return unnorm
 
 
-def get_final_xarray(data: Dict[str, Union[Tensor, Any]], y_hat: Tensor, dataloader: PixelDataLoader, cfg: Config) -> xr.Dataset:
+def get_final_xarray(
+    data: Dict[str, Union[Tensor, Any]],
+    y_hat: Tensor,
+    dataloader: PixelDataLoader,
+    cfg: Config,
+) -> xr.Dataset:
     ds = convert_to_xarray(data=data, y_hat=y_hat)
-    # get the final prediction
+    #  get the final prediction
     ds = ds.isel(time=-1)
-    # unnormalize the data (output scale)
+    #  unnormalize the data (output scale)
     ds = unnormalize_ds(dataloader=test_dl, ds=ds, cfg=cfg)
-    # correct the formatting
+    #  correct the formatting
     if "sample" in ds.coords:
         ds = ds.drop("sample")
     ds = ds.expand_dims("time")
@@ -150,7 +155,7 @@ def train(cfg, train_dl, valid_dl, model):
         optimizer_path = cfg.run_dir / f"optimizer_state_epoch{epoch:03d}.pt"
         torch.save(optimizer.state_dict(), str(optimizer_path))
 
-        # TODO: early stopping
+        #  TODO: early stopping
         # batch the validation data each epoch
         val_pbar = tqdm(valid_dl, desc=f"Validation Epoch {epoch}: ")
         with torch.no_grad():
@@ -163,6 +168,7 @@ def train(cfg, train_dl, valid_dl, model):
 
         epoch_train_loss = np.mean(valid_loss)
         print(f"Valid Loss: {np.sqrt(np.mean(valid_loss)):.2f}")
+
 
 if __name__ == "__main__":
     TRAIN = True
@@ -189,7 +195,7 @@ if __name__ == "__main__":
         valid_dl = PixelDataLoader(valid_ds, cfg=cfg, mode="validation")
 
     else:
-        # tester = Tester(cfg, ds)
+        #  tester = Tester(cfg, ds)
         cfg = Config(cfg_path=Path("runs/test_1602_154323/config.yml"))
 
         test_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
