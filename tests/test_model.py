@@ -18,6 +18,8 @@ from tqdm import tqdm
 
 
 class TestModels:
+    #  Test all models return a dictionary
+    #  valid keys: "y_hat"; "h_n"; "c_n"
     def test_linear_regression_forward_pass(self, tmp_path):
         ds = _make_dataset()
         cfg = Config(Path("tests/testconfigs/test_config.yml"))
@@ -33,7 +35,8 @@ class TestModels:
         x, _ = data["x_d"], data["y"]
         y_hat = model(x)
 
-        assert y_hat.shape == (1, cfg.horizon if cfg.horizon > 0 else 1)
+        assert isinstance(y_hat, dict)
+        assert y_hat["y_hat"].shape == (1, cfg.horizon if cfg.horizon > 0 else 1)
 
     def test_lstm_forward_pass(self, tmp_path):
         ds = pickle.load(Path("data/kenya.pkl").open("rb"))

@@ -17,6 +17,7 @@ import torch.nn as nn
 #  library imports
 from spatio_temporal.data.dataloader import PixelDataLoader
 from spatio_temporal.model.lstm import LSTM
+from spatio_temporal.model.linear_regression import LinearRegression
 from spatio_temporal.config import Config
 from spatio_temporal.training.trainer import Trainer
 
@@ -135,14 +136,13 @@ def train(cfg, train_dl, valid_dl, model):
             # forward pass
             y_hat = model(x)
 
-            # measure loss on all (test memory)
-            # or only on last (test_forecast)
-            loss = loss_fn(y_hat["y_hat"][-1], y[-1])
+            # measure loss on forecasts
+            loss = loss_fn(y_hat["y_hat"], y)
 
             # backward pass
-            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            optimizer.zero_grad()
 
             # memorize the training loss
             train_loss.append(loss.item())
@@ -150,11 +150,11 @@ def train(cfg, train_dl, valid_dl, model):
 
         epoch_train_loss = np.mean(train_loss)
 
-        # SAVE epoch results
+        # SAVE model weights
         weight_path = cfg.run_dir / f"model_epoch{epoch:03d}.pt"
         torch.save(model.state_dict(), str(weight_path))
 
-        # SAVE epoch results
+        # SAVE optimizer state dict
         optimizer_path = cfg.run_dir / f"optimizer_state_epoch{epoch:03d}.pt"
         torch.save(optimizer.state_dict(), str(optimizer_path))
 
@@ -175,7 +175,7 @@ def train(cfg, train_dl, valid_dl, model):
 
 
 if __name__ == "__main__":
-    TRAIN = False
+    TRAIN = True
     data_dir = Path("data")
     run_dir = Path("runs")
 
@@ -214,11 +214,17 @@ if __name__ == "__main__":
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-    model = LSTM(
-        input_size=dl.input_size,
-        hidden_size=cfg.hidden_size,
+    # TODO: def get_model from lookup: Dict[str, Model]
+    # model = LSTM(
+    #     input_size=dl.input_size,
+    #     hidden_size=cfg.hidden_size,
+    #     output_size=dl.output_size,
+    #     forecast_horizon=dl.horizon,
+    # ).to(cfg.device)
+    model = LinearRegression(
+        input_size=dl.input_size * cfg.seq_length,
         output_size=dl.output_size,
-        forecast_horizon=dl.horizon,
+        forecast_horizon=cfg.horizon,
     ).to(cfg.device)
 
     if TRAIN:

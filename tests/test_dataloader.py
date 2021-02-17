@@ -56,12 +56,18 @@ class TestDataLoader:
         pixel, _ = dl.dataset.lookup_table[int(data["meta"]["index"])]
 
         # check that the returned data is valid
-        target_time = pd.to_datetime(np.array(data["meta"]["target_time"]).astype("datetime64[ns]").flatten()[0])
+        target_time = pd.to_datetime(
+            np.array(data["meta"]["target_time"]).astype("datetime64[ns]").flatten()[0]
+        )
         input_data_times = pd.to_datetime(stacked_ds.time.values)
         target_time_idx = input_data_times.get_loc(target_time, method="nearest")
         min_input_time = input_data_times[target_time_idx - cfg.seq_length]
-        
-        expected_x_feature = stacked_ds.sel(sample=pixel, time=slice(min_input_time, target_time)).to_array().values.T
+
+        expected_x_feature = (
+            stacked_ds.sel(sample=pixel, time=slice(min_input_time, target_time))
+            .to_array()
+            .values.T
+        )
         x_feature = np.array(x)
         x_feature = x_feature.reshape(expected_x_feature.shape)
 

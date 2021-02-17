@@ -10,7 +10,6 @@ class LinearRegression(nn.Module):
         input_size: int,
         output_size: int,
         forecast_horizon: int,
-        learning_rate: float = 1e-3,
         dropout_rate: float = 0,
     ):
         super().__init__()
@@ -26,13 +25,17 @@ class LinearRegression(nn.Module):
         )
         self.b = Variable(torch.randn(self.output_size), requires_grad=True)
 
+        #  W and b parameters for optimizer to adjust
+        self.W = nn.Parameter(self.W)
+        self.b = nn.Parameter(self.b)
+
     def linear_model(self, x):
         return torch.matmul(self.dropout(x), self.W) + self.b
 
     def forward(self, data):
         x_d = data
-        
-        # flatten all inputs
+
+        #  flatten all inputs
         x_d = x_d.view(-1, self.input_size)
 
-        return self.linear_model(x=x_d)
+        return {"y_hat": self.linear_model(x=x_d)}
