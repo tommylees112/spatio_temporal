@@ -1,6 +1,6 @@
 import torch.nn as nn
 import torch
-import torch.functional as F
+import torch.nn.functional as F
 
 
 class CustomLoss(nn.Module):
@@ -16,7 +16,7 @@ class CustomLoss(nn.Module):
 
 class RMSELoss(nn.Module):
     def __init__(self):
-        super(CustomLoss, self).__init__()
+        super(RMSELoss, self).__init__()
 
     def forward(self, x, y):
         loss = torch.sqrt(F.mse_loss(x, y))

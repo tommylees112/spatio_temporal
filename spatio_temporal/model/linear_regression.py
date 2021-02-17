@@ -20,7 +20,7 @@ class LinearRegression(nn.Module):
         self.forecast_horizon = forecast_horizon
         self.dropout = nn.Dropout(p=dropout_rate)
 
-        #  TODO: Since PyTorch 0.4 *Variable and Tensor have been merged.
+        # TODO: Since PyTorch 0.4 *Variable and Tensor have been merged.
         # We don't have to explicitly create a Variable object anymore.
         self.W = Variable(
             torch.randn(self.input_size, self.output_size), requires_grad=True

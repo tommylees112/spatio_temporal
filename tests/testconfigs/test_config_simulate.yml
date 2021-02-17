@@ -31,10 +31,10 @@ learning_rate: 1e-2
 batch_size: 30
 
 # input timesteps
-seq_length: 10
+seq_length: 2
 
 # horizon to make predictions over ([1, ..., horizon])
-horizon: 0
+horizon: 1
 
 # specify optimizer [Adam]
 optimizer: Adam

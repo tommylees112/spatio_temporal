@@ -105,3 +105,16 @@ def create_and_assign_temp_run_path_to_config(cfg: Config, tmp_path: Path) -> No
 
 def create_sin_with_different_phases():
     assert False
+
+
+def create_linear_ds():
+    ds = _make_dataset(start_date="01-01-2000", end_date="01-01-2021",)
+
+    def f(x: xr.DataArray, alpha: float = 0, beta: float = 3.5) -> xr.DataArray:
+        epsilon = np.random.normal(loc=0, scale=1, size=x.shape)
+        y = (x * beta) + epsilon
+        return y
+
+    ds["target"] = f(ds["feature"], alpha=0, beta=3.5)
+
+    return ds
