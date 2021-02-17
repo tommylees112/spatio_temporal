@@ -20,6 +20,7 @@ from spatio_temporal.model.lstm import LSTM
 from spatio_temporal.model.linear_regression import LinearRegression
 from spatio_temporal.config import Config
 from spatio_temporal.training.trainer import Trainer
+from spatio_temporal.model.losses import RMSELoss
 
 
 def _save_epoch_information(run_dir: Path, epoch: int, model, optimizer) -> None:
@@ -121,11 +122,7 @@ def _get_loss_obj(cfg: Config):
     if cfg.loss == "MSE":
         loss_fn = nn.MSELoss()
     if cfg.loss == "RMSE":
-
-        def RMSELoss(yhat, y):
-            return torch.sqrt(F.mse_loss(yhat, y))
-
-        loss_fn = RMSELoss
+        loss_fn = RMSELoss()
 
     return loss_fn
 
@@ -138,7 +135,15 @@ def _get_optimizer(cfg: Config):
     return optimizer
 
 
-def train_and_validate(cfg: Config, train_dl:PixelDataLoader, valid_dl:PixelDataLoader, model):
+def _adjust_learning_rate(optimizer, new_lr: float):
+    for param_group in optimizer.param_groups:
+        old_lr = param_group["lr"]
+        param_group["lr"] = new_lr
+
+
+def train_and_validate(
+    cfg: Config, train_dl: PixelDataLoader, valid_dl: PixelDataLoader, model
+):
     # TODO: move as much of this as possible to the Trainer object!
     # get loss & optimizer
     loss_fn = _get_loss_obj(cfg)
@@ -152,7 +157,7 @@ def train_and_validate(cfg: Config, train_dl:PixelDataLoader, valid_dl:PixelData
         pbar = tqdm(train_dl, desc=f"Training Epoch {epoch}: ")
         for data in pbar:
             x, y = data["x_d"], data["y"]
-            
+
             # forward pass
             y_hat = model(x)
 
