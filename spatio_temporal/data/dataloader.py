@@ -31,7 +31,9 @@ class PixelDataLoader(DataLoader):
         **kwargs,
     ):
         #  TODO: add ability to create different subsets by time (train, test, validation)
-        dataset = XarrayDataset(data, cfg=cfg, mode=mode, normalizer=normalizer, DEBUG=DEBUG)
+        dataset = XarrayDataset(
+            data, cfg=cfg, mode=mode, normalizer=normalizer, DEBUG=DEBUG
+        )
         super().__init__(dataset, **kwargs)
 
         self.input_size = dataset.input_size

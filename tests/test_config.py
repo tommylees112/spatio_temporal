@@ -56,3 +56,8 @@ class TestConfig:
         ]
         for key in expected_keys_with_defaults:
             assert key in [l for l in cfg2.keys()]
+
+    def test_lr_scheduler(self):
+        path = Path("tests/testconfigs/test_config.yml")
+        cfg = Config(cfg_path=path)
+        assert isinstance(cfg.learning_rate, dict)
