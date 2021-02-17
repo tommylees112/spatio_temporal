@@ -38,6 +38,7 @@ class Config:
         "run_dir": Path("runs"),
         "forecast_variables": None,
         "static_inputs": None,
+        "clip_gradient_norm": None,
     }
 
     def __init__(self, cfg_path: Path):
@@ -277,7 +278,7 @@ class Config:
         return self.get_property_with_defaults("device")
 
     @property
-    def learning_rate(self) -> float:
+    def learning_rate(self) -> Union[float, Dict[int, float]]:
         return self.get_property_with_defaults("learning_rate")
 
     @property
@@ -291,3 +292,7 @@ class Config:
     @property
     def static_inputs(self) -> Optional[List[str]]:
         return self.get_property_with_defaults("static_inputs")
+
+    @property
+    def clip_gradient_norm(self) -> float:
+        return self.get_property_with_defaults("clip_gradient_norm")
