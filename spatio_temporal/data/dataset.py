@@ -196,7 +196,7 @@ class XarrayDataset(Dataset):
         if self.static_inputs is not None:
             x_s = torch.cat(self.x_s[pixel], dim=-1).float().to(self.device)
         else:
-            x_s = None
+            x_s = torch.from_numpy(np.array([])).float().to(self.device)
 
         # metadata, store time as integer64 (TODO: why not float?)
         # convert back to timestamp https://stackoverflow.com/a/47562725/9940782
