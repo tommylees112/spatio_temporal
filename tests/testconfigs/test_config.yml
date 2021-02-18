@@ -31,7 +31,7 @@ learning_rate: 1e-4
 batch_size: 30
 
 # input timesteps
-seq_length: 2
+seq_length: 3
 
 # horizon to make predictions over ([1, ..., horizon])
 horizon: 1
@@ -54,4 +54,8 @@ target_variable: target
 input_variables: 
   - feature
 
-autoregressive: True
+autoregressive: False
+
+pixel_dims: 
+- lat 
+- lon
