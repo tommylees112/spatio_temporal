@@ -20,26 +20,16 @@ class LinearRegression(nn.Module):
         self.forecast_horizon = forecast_horizon
         self.dropout = nn.Dropout(p=dropout_rate)
 
-        # TODO: Since PyTorch 0.4 *Variable and Tensor have been merged.
-        # We don't have to explicitly create a Variable object anymore.
-        self.W = Variable(
-            torch.randn(self.input_size, self.output_size), requires_grad=True
+        self.linear = nn.Linear(
+            in_features=self.input_size, out_features=self.output_size
         )
-        self.b = Variable(torch.randn(self.output_size), requires_grad=True)
-
-        #  W and b parameters for optimizer to adjust
-        self.W = nn.Parameter(self.W)
-        self.b = nn.Parameter(self.b)
-
-        # initialise 
-
-    def linear_model(self, x):
-        return torch.matmul(self.dropout(x), self.W) + self.b
 
     def forward(self, data):
         x_d = data
 
         #  flatten all inputs
+        #  [batch_size, seq_length, n_features] -> [batch_size, self.input_size]
+        # TODO: fix to work more generally
         x_d = x_d.view(-1, self.input_size)
 
-        return {"y_hat": self.linear_model(x=x_d)}
+        return {"y_hat": self.linear(x_d)}
