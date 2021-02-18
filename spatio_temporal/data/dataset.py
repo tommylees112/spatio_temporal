@@ -224,7 +224,8 @@ class XarrayDataset(Dataset):
         #     time_ = self.times[pixel][target_index]
         # else:
         #  forecast the next `self.horizon` timesteps
-        y_ = self.y[pixel][target_index : (target_index + self.horizon)]
+        end_fcast_correction = 1 if self.horizon == 0 else 0
+        y_ = self.y[pixel][target_index : (target_index + self.horizon + end_fcast_correction) ]
         y_ = y_.reshape(-1, 1) if y_.ndim == 1 else y_
         time_ = self.times[pixel][target_index : (target_index + self.horizon)]
 
