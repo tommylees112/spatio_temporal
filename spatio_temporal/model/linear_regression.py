@@ -5,6 +5,16 @@ from torch.autograd import Variable
 
 
 class LinearRegression(nn.Module):
+    """
+    ```python
+        model = LinearRegression(
+            input_size=dl.input_size * cfg.seq_length,
+            output_size=dl.output_size,
+            forecast_horizon=cfg.horizon,
+        ).to(cfg.device)
+    ```
+    """
+
     def __init__(
         self,
         input_size: int,

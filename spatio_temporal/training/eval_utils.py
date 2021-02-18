@@ -3,6 +3,7 @@ from typing import Dict, Tuple, Union, Any
 import numpy as np
 import xarray as xr
 import pandas as pd
+import matplotlib.pyplot as plt
 from spatio_temporal.data.dataloader import PixelDataLoader
 from spatio_temporal.config import Config
 from spatio_temporal.data.normaliser import Normalizer
@@ -99,18 +100,35 @@ def data_in_memory_to_xarray(
     lats = np.array([float(pixel.split("_")[0]) for pixel in pixels])
     lons = np.array([float(pixel.split("_")[1]) for pixel in pixels])
 
-    df = pd.DataFrame(
-        dict(
-            obs=y.flatten(),
-            sim=y_hat.flatten(),
-            lat=lats.flatten(),
-            lon=lons.flatten(),
-            time=times,
+    #  TODO: deal with the cases where forecast horizon > 1 (and so multiple forecasts)
+    if y.squeeze().ndim == 1:
+        df = pd.DataFrame(
+            dict(
+                obs=y.squeeze(),
+                sim=y_hat.squeeze(),
+                lat=lats.squeeze(),
+                lon=lons.squeeze(),
+                time=times,
+            )
         )
-    )
+    else:
+        # TODO: need to unpack multiple forecast horizons
+        assert False
     ds = df.set_index(["time", "lat", "lon"]).to_xarray()
 
     #  TODO: unnormalize the raw xarray data
     normalizer = dataloader.dataset.normalizer
     ds = normalizer.transform_target_preds_Dataset(ds, cfg)
     return ds
+
+
+def scatter_plot(preds: xr.Dataset, cfg: Config, model: str = "nn") -> None:
+    f, ax = plt.subplots()
+    ax.scatter(
+        preds.obs.values.flatten(), preds.sim.values.flatten(), marker="x", alpha=0.1
+    )
+    ax.set_xlabel("Observations")
+    ax.set_ylabel("Simulations")
+    ax.set_title(f"{model} Observed vs. Predicted")
+
+    f.savefig(cfg.run_dir / f"scatter_{model}.png")

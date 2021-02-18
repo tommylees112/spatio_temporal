@@ -13,10 +13,10 @@ class Trainer(BaseTrainer):
 
         # set / use the run directory
         self._create_folder_structure()
-        self.device = cfg.device
+        self.device = self.cfg.device
 
         #  set random seeds
-        self._set_random_seeds()
+        self._set_seeds(self.cfg)
         # dump config file
         self.cfg.dump_config(self.cfg.run_dir)
 

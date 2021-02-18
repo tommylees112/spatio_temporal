@@ -80,3 +80,9 @@ class BaseTrainer:
 
     def __repr__(self):
         pprint(self.cfg._cfg)
+
+    @staticmethod
+    def _set_seeds(cfg: Config):
+        seed = cfg.seed
+        torch.manual_seed(seed)
+        np.random.seed(seed)

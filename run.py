@@ -24,13 +24,14 @@ from spatio_temporal.config import Config
 from spatio_temporal.training.trainer import Trainer
 from spatio_temporal.model.losses import RMSELoss
 from spatio_temporal.data.data_utils import load_all_data_from_dl_into_memory
-from tests.utils import create_linear_ds, create_dummy_vci_ds
+from tests.utils import create_linear_ds, create_dummy_vci_ds, _test_sklearn_model
 from spatio_temporal.training.eval_utils import (
     _create_dict_data_coords_for_individual_sample,
     convert_individual_to_xarray,
     unnormalize_ds,
     get_individual_prediction_xarray_data,
     data_in_memory_to_xarray,
+    scatter_plot,
 )
 
 
@@ -47,12 +48,6 @@ def _get_args() -> dict:
         raise ValueError("Missing path to run directory")
 
     return args
-
-
-def _set_seeds(cfg):
-    seed = cfg.seed
-    torch.manual_seed(seed)
-    np.random.seed(seed)
 
 
 def _save_epoch_information(run_dir: Path, epoch: int, model, optimizer) -> None:
@@ -75,18 +70,6 @@ def _get_weight_file(cfg: Config, epoch: Optional[int] = None) -> Path:
     return weight_file
 
 
-def scatter_plot(preds: xr.Dataset, cfg: Config, model: str = "nn") -> None:
-    f, ax = plt.subplots()
-    ax.plot(
-        preds.obs.values.flatten(), preds.sim.values.flatten(), marker="x", alpha=0.1
-    )
-    ax.set_xlabel("Observations")
-    ax.set_ylabel("Simulations")
-    ax.set_title(f"{model} Observed vs. Predicted")
-
-    f.savefig(cfg.run_dir / f"scatter_{model}.png")
-
-
 def run_test(cfg: Config, test_dl: PixelDataLoader, model):
     weight_file = _get_weight_file(cfg)
     epoch = int(weight_file.name.split(".")[0][-3:])
@@ -100,6 +83,8 @@ def run_test(cfg: Config, test_dl: PixelDataLoader, model):
             x, y = data["x_d"], data["y"]
             y_hat = model(x)
 
+            # TODO: deal with multiple forecast horizons
+            # (y_hat["y_hat"].squeeze().shape[0] > 1)
             #  get the final prediction
             _ds = get_individual_prediction_xarray_data(
                 data=data, y_hat=y_hat, dataloader=test_dl, cfg=cfg
@@ -119,6 +104,8 @@ def _get_loss_obj(cfg: Config):
         loss_fn = nn.MSELoss()
     if cfg.loss == "RMSE":
         loss_fn = RMSELoss()
+    if cfg.loss == "huber":
+        loss_fn = nn.SmoothL1Loss()
 
     return loss_fn
 
@@ -132,34 +119,10 @@ def _get_optimizer(cfg: Config):
 
 
 def _adjust_learning_rate(optimizer, new_lr: float):
+    # TODO: adjust the learning rate as go through
     for param_group in optimizer.param_groups:
         old_lr = param_group["lr"]
         param_group["lr"] = new_lr
-
-
-def _test_sklearn_model(train_dl, test_dl, cfg):
-    from sklearn.linear_model import LinearRegression as LR
-    import matplotlib.pyplot as plt
-
-    #  load all of the TRAIN data into memory
-    data = load_all_data_from_dl_into_memory(train_dl)
-    x_d, y = data["x_d"], data["y"]
-    reg = LR(normalize=True).fit(x_d, y)
-    plt.scatter(x_d, y, marker="x", alpha=0.1)
-    plt.plot(x_d, reg.predict(x_d), label="Predicted", color="C1")
-    plt.title(f"sklearn.LinearRegression R2: {reg.score(x_d, y):.2f}")
-    plt.legend()
-    plt.gcf().savefig(cfg.run_dir / "scatter.png")
-
-    #  Run the test
-    data = load_all_data_from_dl_into_memory(test_dl)
-    x_d, y = data["x_d"], data["y"]
-    y_hat = reg.predict(x_d)
-
-    preds = data_in_memory_to_xarray(
-        data=data, y_hat=y_hat, cfg=cfg, dataloader=test_dl
-    )
-    scatter_plot(preds, cfg, model="sklearn")
 
 
 def train_and_validate(
@@ -223,6 +186,9 @@ def train_and_validate(
                 x_val, y_val = data["x_d"], data["y"]
                 y_hat_val = model(x_val)
                 val_loss = loss_fn(y_hat_val["y_hat"], y_val)
+
+                # if torch.isnan(val_loss):
+                #     assert False, "Why is this happening?"
                 valid_loss.append(val_loss.item())
 
         epoch_valid_loss = np.mean(valid_loss)
@@ -236,20 +202,21 @@ def train_and_validate(
 
 
 if __name__ == "__main__":
+    # TODO: linear model still has errors when fh = 0
     args = _get_args()
     mode = args["mode"]
-    config_file = Path(args["config_file"])
-
-    assert config_file.exists(), f"Expect config file at {config_file}"
 
     #  load data
-    # data_dir = Path("data")
-    # ds = pickle.load((data_dir / "kenya.pkl").open("rb"))
+    data_dir = Path("data")
+    ds = pickle.load((data_dir / "kenya.pkl").open("rb"))
     # ds = ds.isel(lat=slice(0, 10), lon=slice(0, 10))
-    ds = create_linear_ds()
+    # ds = create_linear_ds()
 
     #  Run Training and Evaluation
     if mode == "train":
+        config_file = Path(args["config_file"])
+        assert config_file.exists(), f"Expect config file at {config_file}"
+
         cfg = Config(cfg_path=config_file)
         trainer = Trainer(cfg, ds)
 
@@ -267,9 +234,6 @@ if __name__ == "__main__":
         )
         valid_dl = PixelDataLoader(valid_ds, cfg=cfg, mode="validation")
 
-        _test_sklearn_model(train_dl, valid_dl, cfg)
-        # _test_sklearn_model(train_dl, valid_dl, cfg)
-
     #  Run Evaluation only
     else:
         #  tester = Tester(cfg, ds)
@@ -283,8 +247,8 @@ if __name__ == "__main__":
     # Get DataLoaders
     dl = test_dl = PixelDataLoader(test_ds, cfg=cfg, mode="test")
 
-    # set seeds (reproducibility)
-    _set_seeds(cfg)
+    print("Testing sklearn Linear Regression")
+    _test_sklearn_model(train_dl, test_dl, cfg)
 
     # TODO: def get_model from lookup: Dict[str, Model]
     model = LSTM(
@@ -293,11 +257,6 @@ if __name__ == "__main__":
         output_size=dl.output_size,
         forecast_horizon=cfg.horizon,
     ).to(cfg.device)
-    # model = LinearRegression(
-    #     input_size=dl.input_size * cfg.seq_length,
-    #     output_size=dl.output_size,
-    #     forecast_horizon=cfg.horizon,
-    # ).to(cfg.device)
 
     print("-- Working with model: --")
     print(model)

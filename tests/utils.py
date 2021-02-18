@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import List, Tuple, Dict
 from spatio_temporal.config import Config
 from spatio_temporal.data.dataloader import PixelDataLoader
+from spatio_temporal.data.data_utils import load_all_data_from_dl_into_memory
+from spatio_temporal.training.eval_utils import data_in_memory_to_xarray, scatter_plot
 
 
 def _make_dataset(
@@ -156,3 +158,35 @@ def create_dummy_vci_ds():
     ds["boku_VCI"] = f(ds[["precip", "t2m", "SMsurf"]])
 
     return ds
+
+
+def _test_sklearn_model(train_dl, test_dl, cfg):
+    from sklearn.linear_model import LinearRegression as LR
+    import matplotlib.pyplot as plt
+
+    #  load all of the TRAIN data into memory
+    data = load_all_data_from_dl_into_memory(train_dl)
+    x_d, y = data["x_d"], data["y"]
+    x_d = x_d.reshape(len(y), -1) if x_d.ndim > 2 else x_d
+    reg = LR().fit(x_d, y)
+
+    def plot_1d_scatter():
+        plt.scatter(x_d, y, marker="x", alpha=0.1)
+        plt.plot(x_d, reg.predict(x_d), label="Predicted", color="C1")
+        plt.title(f"sklearn.LinearRegression R2: {reg.score(x_d, y):.2f}")
+        plt.legend()
+        plt.gcf().savefig(cfg.run_dir / "scatter.png")
+
+    if x_d.shape[-1] == 1:
+        plot_1d_scatter()
+
+    #  Run the test
+    data = load_all_data_from_dl_into_memory(test_dl)
+    x_d, y = data["x_d"], data["y"]
+    x_d = x_d.reshape(len(y), -1) if x_d.ndim > 2 else x_d
+    y_hat = reg.predict(x_d)
+
+    preds = data_in_memory_to_xarray(
+        data=data, y_hat=y_hat, cfg=cfg, dataloader=test_dl
+    )
+    scatter_plot(preds, cfg, model="sklearn")
