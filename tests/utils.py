@@ -110,19 +110,27 @@ def create_sin_with_different_phases():
 
 
 def create_linear_ds(
-    horizon: int = 1, alpha: float = 0, beta: float = 3.5, epsilon_sigma: float = 1
+    horizon: int = 1, alpha: float = 0, beta: float = 3.5, epsilon_sigma: float = 0
 ):
     ds = _make_dataset(start_date="01-01-2000", end_date="01-01-2021")
 
     def f(
-        x: xr.DataArray, alpha: float = 0, beta: float = 3.5, epsilon_sigma: float = 1
+        x: xr.DataArray, alpha: float, beta: float, epsilon_sigma: float
     ) -> xr.DataArray:
         epsilon = np.random.normal(loc=0, scale=epsilon_sigma, size=x.shape)
         y = alpha + (x * beta) + epsilon
         return y
 
     ds["target"] = f(ds["feature"], alpha=alpha, beta=beta, epsilon_sigma=epsilon_sigma)
-    ds["feature"] = ds["feature"].shift(time=horizon)
+    ds["feature"] = ds["feature"].shift(time=-horizon)
+
+    if epsilon_sigma == 0:
+        #  if no noise make sure that the calculation is correct
+        yhat = alpha + (ds["feature"].shift(time=horizon) * beta)
+        mask = yhat.isnull()
+        yhat = yhat.values[~mask.values]
+        y = ds["target"].values[~mask.values]
+        assert np.all(yhat == y)
 
     return ds
 
@@ -158,14 +166,17 @@ def _reshape(array: np.ndarray) -> np.ndarray:
 def load_all_dl_into_memory(dl: PixelDataLoader) -> Tuple[np.ndarray, ...]:
     out = defaultdict(list)
     for data in dl:
-        out["x_d"].append(data["x_d"].detach().numpy().squeeze())
+        out["x_d"].append(data["x_d"].detach().numpy())
         out["y"].append(data["y"].detach().numpy().squeeze())
         out["time"].append(data["meta"]["target_time"].detach().numpy().squeeze())
         out["index"].append(data["meta"]["index"].detach().numpy().squeeze())
 
     return_dict: Dict[str, np.ndarray] = {}
     for key in out.keys():
-        var_ = np.array(out[key])
+        # concatenate over batch dimension (dimension = 0)
+        var_ = np.concatenate(out[key])
+        if key == "x_d":
+            var_ = var_.squeeze() if var_.ndim == 3 else var_
         var_ = _reshape(var_)
         return_dict[key] = var_
 
