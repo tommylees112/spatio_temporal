@@ -240,12 +240,12 @@ if __name__ == "__main__":
     dl = train_dl = PixelDataLoader(
         train_ds, cfg=cfg, mode="train", batch_size=cfg.batch_size
     )
-    valid_dl = PixelDataLoader(valid_ds, cfg=cfg, mode="validation")
+    valid_dl = PixelDataLoader(valid_ds, cfg=cfg, mode="validation", batch_size=cfg.batch_size)
 
     test_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
         time=slice(cfg.test_start_date, cfg.test_end_date)
     )
-    dl = test_dl = PixelDataLoader(test_ds, cfg=cfg, mode="test")
+    dl = test_dl = PixelDataLoader(test_ds, cfg=cfg, mode="test", batch_size=cfg.batch_size)
 
     if baseline:
         print("Testing sklearn Linear Regression")
