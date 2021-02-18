@@ -39,6 +39,7 @@ def _get_args() -> dict:
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", choices=["train", "evaluate"])
     parser.add_argument("--config_file", type=str)
+    parser.add_argument("--baseline", type=bool, default=False)
     parser.add_argument("--run_dir", type=str)
 
     # parse args from user input
@@ -205,12 +206,15 @@ if __name__ == "__main__":
     #  TODO: linear model still has errors when fh = 0
     args = _get_args()
     mode = args["mode"]
+    baseline = args["baseline"]
 
     #  load data
     data_dir = Path("data")
-    ds = pickle.load((data_dir / "kenya.pkl").open("rb"))
+    # ds = pickle.load((data_dir / "kenya.pkl").open("rb"))
     # ds = ds.isel(lat=slice(0, 10), lon=slice(0, 10))
     # ds = create_linear_ds()
+    ds = xr.open_dataset(data_dir / "ALL_dynamic_ds.nc")
+    ds = ds.isel(station_id=slice(0, 10))
 
     #  Run Training and Evaluation
     if mode == "train":
@@ -243,8 +247,9 @@ if __name__ == "__main__":
     )
     dl = test_dl = PixelDataLoader(test_ds, cfg=cfg, mode="test")
 
-    print("Testing sklearn Linear Regression")
-    _test_sklearn_model(train_dl, test_dl, cfg)
+    if baseline:
+        print("Testing sklearn Linear Regression")
+        _test_sklearn_model(train_dl, test_dl, cfg)
 
     # TODO: def get_model from lookup: Dict[str, Model]
     model = LSTM(
@@ -259,10 +264,19 @@ if __name__ == "__main__":
     print()
 
     if mode == "train":
-        train_losses_all, valid_losses_all = train_and_validate(
+        train_losses, valid_losses = train_and_validate(
             cfg, train_dl, valid_dl, model
         )
         run_test(cfg, test_dl, model)
+        
+        # save the loss curves
+        f, ax = plt.subplots()
+        ax.plot(train_losses, label="Train")
+        ax.plot(valid_losses, label="Validation")
+        f.savegfig(cfg.run_dir / "loss_curves.png")
+        df = pd.DataFrame({"train": train_losses.flatten(), "validation": valid_losses.flatten()})
+        df.to_csv(cfg.run_fir / "losses.csv")
+
     elif mode == "evaluate":
         # RUN TEST !
         run_test(cfg, test_dl, model)
