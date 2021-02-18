@@ -23,44 +23,14 @@ conda install -c conda-forge netcdf4 numba tqdm jupyterlab tensorboard ipython p
 # pip install geopandas
 ```
 
-## Models are not learning :(
-Trying to learn a linear relationship between `features` and `target` from data created by `from tests.utils import create_linear_ds`.
+## TODO: make the run.py more general
+- read in dataset
+- `Trainer` and `Tester` classes
 ```bash
 ipython --pdb run.py train  -- --config_file tests/testconfigs/run_test_config.yml
 ```
 
-Current output :sad:
-```
-Loading Data: 100%|███████████████████████████████████████████████████████████████████████████████████████████| 100/100 [00:00<00:00, 105.80it/s]
-Loading Data: 100%|███████████████████████████████████████████████████████████████████████████████████████████| 100/100 [00:00<00:00, 641.40it/s]
-Loading Data: 100%|███████████████████████████████████████████████████████████████████████████████████████████| 100/100 [00:00<00:00, 510.73it/s]
--- Working with model: --
-LinearRegression(
-  (dropout): Dropout(p=0, inplace=False)
-)
-
-Training Epoch 1: 100%|████████████████████████████████████████████████████████████████████████| 15300/15300 [00:06<00:00, 2502.46it/s, 23706.79]
-Validation Epoch 1:   0%|                                                                                               | 0/3300 [00:00<?, ?it/s]/Users/tommylees/miniconda3/envs/ml/lib/python3.8/site-packages/torch/nn/modules/loss.py:446: UserWarning: Using a target size (torch.Size([1, 1])) that is different to the input size (torch.Size([1])). This will likely lead to incorrect results due to broadcasting. Please ensure they have the same size.
-  return F.mse_loss(input, target, reduction=self.reduction)
-Validation Epoch 1: 100%|██████████████████████████████████████████████████████████████████████████████████| 3300/3300 [00:00<00:00, 7339.99it/s]
-Train Loss: 117.65
-Valid Loss: 29.41
-Training Epoch 2: 100%|████████████████████████████████████████████████████████████████████████| 15300/15300 [00:05<00:00, 2599.40it/s, 23817.25]
-Validation Epoch 2: 100%|██████████████████████████████████████████████████████████████████████████████████| 3300/3300 [00:00<00:00, 7375.67it/s]
-Train Loss: 112.18
-Valid Loss: 54.74
-Training Epoch 3: 100%|████████████████████████████████████████████████████████████████████████| 15300/15300 [00:05<00:00, 2599.48it/s, 23913.97]
-Validation Epoch 3: 100%|██████████████████████████████████████████████████████████████████████████████████| 3300/3300 [00:00<00:00, 7327.49it/s]
-Train Loss: 108.55
-Valid Loss: 76.24
-Training Epoch 4: 100%|████████████████████████████████████████████████████████████████████████| 15300/15300 [00:05<00:00, 2596.00it/s, 23996.17]
-Validation Epoch 4: 100%|██████████████████████████████████████████████████████████████████████████████████| 3300/3300 [00:00<00:00, 7408.75it/s]
-Train Loss: 105.99
-Valid Loss: 94.19
-Training Epoch 5: 100%|████████████████████████████████████████████████████████████████████████| 15300/15300 [00:05<00:00, 2601.24it/s, 24064.47]
-Validation Epoch 5: 100%|██████████████████████████████████████████████████████████████████████████████████| 3300/3300 [00:00<00:00, 7394.89it/s]
-Train Loss: 104.22
-Valid Loss: 109.00
-Test set Forward Pass: 100%|████████████████████████████████████████████████████████████████████████████████| 5700/5700 [00:07<00:00, 784.24it/s]
-... Merging all predictions to one xr.Dataset
+## Run the tests to get a feel for how the pipeline works
+```bash
+pytest --pdb .
 ```
