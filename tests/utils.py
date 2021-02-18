@@ -2,8 +2,10 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 from pathlib import Path
-from typing import List
+from typing import List, Tuple, Dict
+from collections import defaultdict
 from spatio_temporal.config import Config
+from spatio_temporal.data.dataloader import PixelDataLoader
 
 
 def _make_dataset(
@@ -107,14 +109,64 @@ def create_sin_with_different_phases():
     assert False
 
 
-def create_linear_ds():
-    ds = _make_dataset(start_date="01-01-2000", end_date="01-01-2021",)
+def create_linear_ds(
+    horizon: int = 1, alpha: float = 0, beta: float = 3.5, epsilon_sigma: float = 1
+):
+    ds = _make_dataset(start_date="01-01-2000", end_date="01-01-2021")
 
-    def f(x: xr.DataArray, alpha: float = 0, beta: float = 3.5) -> xr.DataArray:
-        epsilon = np.random.normal(loc=0, scale=1, size=x.shape)
-        y = (x * beta) + epsilon
+    def f(
+        x: xr.DataArray, alpha: float = 0, beta: float = 3.5, epsilon_sigma: float = 1
+    ) -> xr.DataArray:
+        epsilon = np.random.normal(loc=0, scale=epsilon_sigma, size=x.shape)
+        y = alpha + (x * beta) + epsilon
         return y
 
-    ds["target"] = f(ds["feature"], alpha=0, beta=3.5)
+    ds["target"] = f(ds["feature"], alpha=alpha, beta=beta, epsilon_sigma=epsilon_sigma)
+    ds["feature"] = ds["feature"].shift(time=horizon)
 
     return ds
+
+
+def create_dummy_vci_ds():
+    ds = _make_dataset(
+        start_date="01-01-2000",
+        end_date="01-01-2021",
+        variable_names=["precip", "boku_VCI", "t2m", "SMsurf"],
+    )
+
+    def f(
+        x: xr.Dataset, betas: np.ndarray = np.array([1, 2, 3]), epsilon_sigma: float = 1
+    ) -> xr.DataArray:
+        # y = X @ B + epsilon
+        epsilon = np.random.normal(
+            loc=0, scale=epsilon_sigma, size=tuple(dict(ds.dims).values())
+        )
+        x = x.to_array().values
+        y = np.einsum("ijkl,i", x, betas) + epsilon
+        dims = [k for k in dict(ds.dims).keys()]
+        return (dims, y)
+
+    ds["boku_VCI"] = f(ds[["precip", "t2m", "SMsurf"]])
+
+    return ds
+
+
+def _reshape(array: np.ndarray) -> np.ndarray:
+    return array if array.ndim > 1 else array.reshape(-1, 1)
+
+
+def load_all_dl_into_memory(dl: PixelDataLoader) -> Tuple[np.ndarray, ...]:
+    out = defaultdict(list)
+    for data in dl:
+        out["x_d"].append(data["x_d"].detach().numpy().squeeze())
+        out["y"].append(data["y"].detach().numpy().squeeze())
+        out["time"].append(data["meta"]["target_time"].detach().numpy().squeeze())
+        out["index"].append(data["meta"]["index"].detach().numpy().squeeze())
+
+    return_dict: Dict[str, np.ndarray] = {}
+    for key in out.keys():
+        var_ = np.array(out[key])
+        var_ = _reshape(var_)
+        return_dict[key] = var_
+
+    return return_dict

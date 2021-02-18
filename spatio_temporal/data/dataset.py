@@ -114,7 +114,7 @@ class XarrayDataset(Dataset):
             else:
                 self.normalizer = normalizer
 
-            ds = self.normalizer.transform(ds)
+        ds = self.normalizer.transform(ds)
         return ds
 
     def store_data(

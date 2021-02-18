@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import numpy as np
 import torch.optim as optim
-from spatio_temporal.model.base_lightning import BaseModel
 
 
 class LSTM(nn.Module):

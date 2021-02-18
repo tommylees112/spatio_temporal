@@ -31,6 +31,8 @@ class LinearRegression(nn.Module):
         self.W = nn.Parameter(self.W)
         self.b = nn.Parameter(self.b)
 
+        # initialise 
+
     def linear_model(self, x):
         return torch.matmul(self.dropout(x), self.W) + self.b
 

@@ -12,6 +12,8 @@ from tests.utils import (
     load_test_jena_data_as_dataset,
     create_and_assign_temp_run_path_to_config,
     create_sin_with_different_phases,
+    create_linear_ds,
+    load_all_dl_into_memory,
 )
 from spatio_temporal.data.dataloader import (
     XarrayDataset,
@@ -211,6 +213,26 @@ class TestDataLoader:
             assert y.shape == (cfg.batch_size, cfg.horizon, 1)
         else:
             pass
+
+    def test_linear_example(self, tmp_path):
+        cfg = Config(Path("tests/testconfigs/test_config.yml"))
+        create_and_assign_temp_run_path_to_config(cfg, tmp_path)
+        ds = create_linear_ds(
+            horizon=cfg.horizon, alpha=0, beta=2, epsilon_sigma=2
+        ).isel(lat=slice(0, 5), lon=slice(0, 5))
+        dl = PixelDataLoader(
+            ds, cfg=cfg, num_workers=1, mode="train", batch_size=cfg.batch_size
+        )
+
+        #  load all of the data into memory
+        data = load_all_dl_into_memory(dl)
+
+        #  recreate the data from the raw data
+        _x_d = ds["feature"].shift(time=-cfg.horizon)
+        _y = ds["target"]
+
+        #  assert they are equal
+        assert False
 
     def test_sine_wave_example(self):
         #  create_sin_with_different_phases()

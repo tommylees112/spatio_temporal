@@ -1,12 +1,12 @@
 # --- Experiment Configurations ---------------------------------------------------------------------
 # experiment name, used as folder name
-experiment_name: test
+experiment_name: linear_input_data
 
 # place to store run directory (if empty runs are stored in code_dir/runs/)
 run_dir:
 
 # fixed seed, leave empty to use a random seed
-seed: 1234
+seed: 1
 
 # training, validation and test time periods (format = 'dd/mm/yyyy')
 train_start_date: "31/01/2003"

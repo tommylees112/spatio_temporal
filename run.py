@@ -22,7 +22,7 @@ from spatio_temporal.model.linear_regression import LinearRegression
 from spatio_temporal.config import Config
 from spatio_temporal.training.trainer import Trainer
 from spatio_temporal.model.losses import RMSELoss
-from tests.utils import create_linear_ds
+from tests.utils import create_linear_ds, create_dummy_vci_ds
 
 
 def _get_args() -> dict:
@@ -164,6 +164,23 @@ def _adjust_learning_rate(optimizer, new_lr: float):
         param_group["lr"] = new_lr
 
 
+def _test_sklearn_model(train_dl, valid_dl, cfg):
+    from sklearn.linear_model import LinearRegression
+    import matplotlib.pyplot as plt
+
+    #  load all of the data into memory
+    x_d = np.array([data["y"].detach().numpy().squeeze() for data in train_dl])
+    y = np.array([data["y"].detach().numpy().squeeze() for data in train_dl])
+    x_d = x_d if x_d.ndim > 1 else x_d.reshape(-1, 1)
+    y = y if y.ndim > 1 else y.reshape(-1, 1)
+
+    reg = LinearRegression(normalize=True).fit(x_d, y)
+    plt.scatter(x_d, y, marker="x", alpha=0.1)
+    plt.gcf().savefig(cfg.run_dir / "scatter.png")
+
+    assert False
+
+
 def train_and_validate(
     cfg: Config, train_dl: PixelDataLoader, valid_dl: PixelDataLoader, model
 ):
@@ -171,6 +188,8 @@ def train_and_validate(
     # get loss & optimizer
     loss_fn = _get_loss_obj(cfg)
     optimizer = _get_optimizer(cfg)
+    train_losses_all = []
+    valid_losses_all = []
 
     for epoch in range(1, cfg.n_epochs + 1):
         model.train()
@@ -181,6 +200,9 @@ def train_and_validate(
         for data in pbar:
             x, y = data["x_d"], data["y"]
 
+            # zero gradient before forward pass
+            optimizer.zero_grad()
+
             # forward pass
             y_hat = model(x)
 
@@ -189,10 +211,13 @@ def train_and_validate(
                 y = y.squeeze(0)
             loss = loss_fn(y_hat["y_hat"], y)
 
+            if torch.isnan(loss):
+                #  TODO: why nans with 0 horizon inputs 
+                assert False
+
             # backward pass (get gradients, step optimizer, delete old gradients)
             loss.backward()
             optimizer.step()
-            optimizer.zero_grad()
 
             if cfg.clip_gradient_norm is not None:
                 torch.nn.utils.clip_grad_norm_(
@@ -216,12 +241,17 @@ def train_and_validate(
             for data in val_pbar:
                 x_val, y_val = data["x_d"], data["y"]
                 y_hat_val = model(x_val)
-                val_loss = loss_fn(y_hat_val["y_hat"][-1], y_val[-1])
+                val_loss = loss_fn(y_hat_val["y_hat"], y_val)
                 valid_loss.append(val_loss.item())
 
         epoch_valid_loss = np.mean(valid_loss)
         print(f"Train Loss: {np.sqrt(epoch_train_loss):.2f}")
         print(f"Valid Loss: {np.sqrt(epoch_valid_loss):.2f}")
+
+        train_losses_all.append(epoch_train_loss)
+        valid_losses_all.append(epoch_valid_loss)
+
+    return np.array(train_losses_all), np.array(valid_losses_all)
 
 
 if __name__ == "__main__":
@@ -253,6 +283,8 @@ if __name__ == "__main__":
         # Get DataLoaders
         dl = train_dl = PixelDataLoader(train_ds, cfg=cfg, mode="train")
         valid_dl = PixelDataLoader(valid_ds, cfg=cfg, mode="validation")
+
+        # _test_sklearn_model(train_dl, valid_dl, cfg)
 
     #  Run Evaluation only
     else:
@@ -288,7 +320,9 @@ if __name__ == "__main__":
     print()
 
     if mode == "train":
-        train_and_validate(cfg, train_dl, valid_dl, model)
+        train_losses_all, valid_losses_all = train_and_validate(
+            cfg, train_dl, valid_dl, model
+        )
         run_test(cfg, test_dl, model)
     elif mode == "evaluate":
         # RUN TEST !

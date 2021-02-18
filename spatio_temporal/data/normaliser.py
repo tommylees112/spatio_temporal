@@ -31,6 +31,7 @@ class Normalizer:
         self.std_.where(~std_zero, epsilon)
 
     def transform(self, ds) -> xr.Dataset:
+        # zero mean, unit variance
         return (ds - self.mean_) / self.std_
 
     def inverse_transform(self, ds: xr.Dataset) -> xr.Dataset:
