@@ -44,7 +44,6 @@ class XarrayDataset(Dataset):
         DEBUG: bool = False,
     ):
         self.cfg = cfg
-        #  TODO: how to keep track of metadata
         # stack pixel_dims to one dimension ("sample")
         stacked, sample = _stack_xarray(data, self.cfg.pixel_dims)
 
@@ -56,6 +55,7 @@ class XarrayDataset(Dataset):
         self.inputs: List[str] = self.cfg.input_variables
         self.target: str = self.cfg.target_variable
         self.device = self.cfg.device
+        self.DEBUG = DEBUG
 
         # TODO: allow static inputs
         self.static_inputs = cfg.static_inputs
@@ -65,7 +65,7 @@ class XarrayDataset(Dataset):
 
         ds: xr.Dataset = stacked
         ds = self.run_normalisation(ds, normalizer=normalizer)
-        if DEBUG:
+        if self.DEBUG:
             # save the stacked dataset to memory to check dataloading
             self.ds = ds
 
@@ -151,11 +151,13 @@ class XarrayDataset(Dataset):
             # self.forecast_variables
 
             #  Shift values one timestep to ensure no leakage
-            if self.horizon > 0:
-                x_d = df_native[self.inputs].shift(1).values
-            else:
-                x_d = df_native[self.inputs].values
+            # TODO: do we need to do this? or do we do in __getitem__
+            # if self.horizon > 0:
+            #     x_d = df_native[self.inputs].shift(self.horizon).values
+            # else:
+            #     x_d = df_native[self.inputs].values
 
+            x_d = df_native[self.inputs].values
             y = df_native[self.target].values
 
             #  TODO: deal with static inputs
@@ -194,25 +196,37 @@ class XarrayDataset(Dataset):
         return self.num_samples
 
     def __getitem__(self, idx: int) -> Dict[str, Tensor]:
-        pixel, index = self.lookup_table[idx]
-        index = int(index)
+        pixel, target_index = self.lookup_table[idx]
+        target_index = int(target_index)
         data = {}
 
         #  Get input/output data
+        #  get the inputs for [target - seq_length : target - horizon]
         x_d = (
-            torch.from_numpy(self.x_d[pixel][index - self.seq_length + 1 : index + 1])
+            torch.from_numpy(
+                self.x_d[pixel][
+                    ((target_index - self.seq_length - self.horizon) + 1) : (
+                        target_index - self.horizon
+                    )
+                    + 1
+                ]
+            )
             .float()
             .to(self.device)
         )
+        if self.DEBUG:
+            assert x_d.shape[0] == self.cfg.seq_length
+
         # get target for current : horizon
-        if self.horizon == 0:
-            #  simulate the current timestep
-            y_ = self.y[pixel][index].reshape(-1, 1)
-            time_ = self.times[pixel][index]
-        else:
-            #  forecast the next `self.horizon` timesteps
-            y_ = self.y[pixel][index : index + self.horizon].reshape(-1, 1)
-            time_ = self.times[pixel][index : index + self.horizon]
+        # if self.horizon == 0:
+        #     #  simulate the current timestep
+        #     y_ = self.y[pixel][target_index].reshape(-1, 1)
+        #     time_ = self.times[pixel][target_index]
+        # else:
+        #  forecast the next `self.horizon` timesteps
+        y_ = self.y[pixel][target_index : (target_index + self.horizon)]
+        y_ = y_.reshape(-1, 1) if y_.ndim == 1 else y_
+        time_ = self.times[pixel][target_index : (target_index + self.horizon)]
 
         y = torch.from_numpy(y_).float().to(self.device)
 
@@ -225,11 +239,13 @@ class XarrayDataset(Dataset):
         # convert back to timestamp https://stackoverflow.com/a/47562725/9940782
         time_ = np.array(time_) if not isinstance(time_, np.ndarray) else time_
         time = torch.from_numpy(time_).float().to(self.device)
-        index = torch.from_numpy(np.array([idx]).reshape(-1)).float().to(self.device)
+        target_index = (
+            torch.from_numpy(np.array([idx]).reshape(-1)).float().to(self.device)
+        )
 
         # write output dictionary
         meta = {
-            "index": index,
+            "index": target_index,
             "target_time": time,
         }
 
