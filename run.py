@@ -200,7 +200,7 @@ def train_and_validate(
         for data in pbar:
             x, y = data["x_d"], data["y"]
 
-            # zero gradient before forward pass
+            #  zero gradient before forward pass
             optimizer.zero_grad()
 
             # forward pass
@@ -212,7 +212,7 @@ def train_and_validate(
             loss = loss_fn(y_hat["y_hat"], y)
 
             if torch.isnan(loss):
-                #  TODO: why nans with 0 horizon inputs 
+                #  TODO: why nans with 0 horizon inputs
                 assert False
 
             # backward pass (get gradients, step optimizer, delete old gradients)
@@ -281,7 +281,9 @@ if __name__ == "__main__":
         )
 
         # Get DataLoaders
-        dl = train_dl = PixelDataLoader(train_ds, cfg=cfg, mode="train")
+        dl = train_dl = PixelDataLoader(
+            train_ds, cfg=cfg, mode="train", batch_size=cfg.batch_size
+        )
         valid_dl = PixelDataLoader(valid_ds, cfg=cfg, mode="validation")
 
         # _test_sklearn_model(train_dl, valid_dl, cfg)
@@ -307,7 +309,7 @@ if __name__ == "__main__":
     #     input_size=dl.input_size,
     #     hidden_size=cfg.hidden_size,
     #     output_size=dl.output_size,
-    #     forecast_horizon=dl.horizon,
+    #     forecast_horizon=cfg.horizon,
     # ).to(cfg.device)
     model = LinearRegression(
         input_size=dl.input_size * cfg.seq_length,
