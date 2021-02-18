@@ -219,32 +219,28 @@ if __name__ == "__main__":
 
         cfg = Config(cfg_path=config_file)
         trainer = Trainer(cfg, ds)
-
-        # Train test split
-        train_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
-            time=slice(cfg.train_start_date, cfg.train_end_date)
-        )
-        valid_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
-            time=slice(cfg.validation_start_date, cfg.validation_end_date)
-        )
-
-        # Get DataLoaders
-        dl = train_dl = PixelDataLoader(
-            train_ds, cfg=cfg, mode="train", batch_size=cfg.batch_size
-        )
-        valid_dl = PixelDataLoader(valid_ds, cfg=cfg, mode="validation")
-
     #  Run Evaluation only
     else:
         #  tester = Tester(cfg, ds)
         test_dir = Path(args["run_dir"])
         cfg = Config(cfg_path=test_dir / "config.yml")
 
+    # Train test split
+    # Get DataLoaders
+    train_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
+        time=slice(cfg.train_start_date, cfg.train_end_date)
+    )
+    valid_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
+        time=slice(cfg.validation_start_date, cfg.validation_end_date)
+    )
+    dl = train_dl = PixelDataLoader(
+        train_ds, cfg=cfg, mode="train", batch_size=cfg.batch_size
+    )
+    valid_dl = PixelDataLoader(valid_ds, cfg=cfg, mode="validation")
+
     test_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
         time=slice(cfg.test_start_date, cfg.test_end_date)
     )
-
-    # Get DataLoaders
     dl = test_dl = PixelDataLoader(test_ds, cfg=cfg, mode="test")
 
     print("Testing sklearn Linear Regression")
