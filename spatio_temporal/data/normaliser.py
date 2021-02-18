@@ -41,7 +41,12 @@ class Normalizer:
         self, data: Union[np.ndarray, torch.Tensor], pixel_id: str, variable: str
     ):
         """inverse transform for one pixel and one variable"""
-        std_ = self.std_.sel(sample=pixel_id)[variable]
-        mean_ = self.mean_.sel(sample=pixel_id)[variable]
+        std_ = self.std_.sel(sample=pixel_id)[variable].values
+        mean_ = self.mean_.sel(sample=pixel_id)[variable].values
 
         return (data * std_) + mean_
+
+    def transform_original_Dataset(ds: xr.Dataset):
+        # TODO: convert pixel ("{lat}_{lon}") to lat, lon information
+        #  then convert as normal
+        pass
