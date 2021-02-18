@@ -71,7 +71,7 @@ class XarrayDataset(Dataset):
 
         # information for building models
         self.horizon = cfg.horizon
-        self.output_size = self.horizon
+        self.output_size = self.horizon if self.horizon > 0 else 1
 
         # add autoregressive variable
         if cfg.autoregressive:
