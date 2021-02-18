@@ -7,6 +7,7 @@ from functools import partial
 from typing import Dict, Tuple, Optional, Any, Union
 from tqdm import tqdm
 import argparse
+import matplotlib.pyplot as plt
 
 # pytorch imports
 import torch
@@ -22,7 +23,15 @@ from spatio_temporal.model.linear_regression import LinearRegression
 from spatio_temporal.config import Config
 from spatio_temporal.training.trainer import Trainer
 from spatio_temporal.model.losses import RMSELoss
+from spatio_temporal.data.data_utils import load_all_data_from_dl_into_memory
 from tests.utils import create_linear_ds, create_dummy_vci_ds
+from spatio_temporal.training.eval_utils import (
+    _create_dict_data_coords_for_individual_sample,
+    convert_individual_to_xarray,
+    unnormalize_ds,
+    get_individual_prediction_xarray_data,
+    data_in_memory_to_xarray,
+)
 
 
 def _get_args() -> dict:
@@ -66,56 +75,16 @@ def _get_weight_file(cfg: Config, epoch: Optional[int] = None) -> Path:
     return weight_file
 
 
-def _create_dict_data_coords(
-    y_hat: Tensor, y: Tensor
-) -> Dict[str, Tuple[str, np.ndarray]]:
-    # a tuple of (dims, data) ready for xr.Dataset creation
-    #  TODO: forecast horizon ... ?
-    data = {}
-    data["obs"] = (("pixel", "time"), y.view(1, -1).detach().numpy())
-    data["sim"] = (("pixel", "time"), y_hat.view(1, -1).detach().numpy())
-    return data
-
-
-def convert_to_xarray(
-    data: Dict[str, Union[Tensor, Any]], y_hat: Tensor, forecast_horizon: int
-) -> xr.Dataset:
-    # back convert to xarray object ...
-    data_xr = _create_dict_data_coords(y_hat=y_hat["y_hat"], y=data["y"])
-    index = int(data["meta"]["index"])
-    times = (
-        data["meta"]["target_time"].detach().numpy().astype("datetime64[ns]").squeeze()
+def scatter_plot(preds: xr.Dataset, cfg: Config, model: str = "nn") -> None:
+    f, ax = plt.subplots()
+    ax.plot(
+        preds.obs.values.flatten(), preds.sim.values.flatten(), marker="x", alpha=0.1
     )
-    times = times.reshape(-1) if times.ndim == 0 else times
-    pixel, _ = test_dl.dataset.lookup_table[int(index)]
+    ax.set_xlabel("Observations")
+    ax.set_ylabel("Simulations")
+    ax.set_title(f"{model} Observed vs. Predicted")
 
-    ds = xr.Dataset(data_xr, coords={"time": times, "pixel": [pixel]})
-    return ds
-
-
-def unnormalize_ds(
-    dataloader: PixelDataLoader, ds: xr.Dataset, cfg: Config
-) -> xr.Dataset:
-    pixel = str(ds.pixel.values[0])
-    unnorm = test_dl.normalizer.individual_inverse(
-        ds, pixel_id=pixel, variable=cfg.target_variable
-    )
-    return unnorm
-
-
-def get_final_xarray(
-    data: Dict[str, Union[Tensor, Any]],
-    y_hat: Tensor,
-    dataloader: PixelDataLoader,
-    cfg: Config,
-) -> xr.Dataset:
-    ds = convert_to_xarray(data=data, y_hat=y_hat, forecast_horizon=cfg.horizon)
-    #  unnormalize the data (output scale)
-    ds = unnormalize_ds(dataloader=test_dl, ds=ds, cfg=cfg)
-    #  correct the formatting
-    if "sample" in ds.coords:
-        ds = ds.drop("sample")
-    return ds
+    f.savefig(cfg.run_dir / f"scatter_{model}.png")
 
 
 def run_test(cfg: Config, test_dl: PixelDataLoader, model):
@@ -132,12 +101,16 @@ def run_test(cfg: Config, test_dl: PixelDataLoader, model):
             y_hat = model(x)
 
             #  get the final prediction
-            _ds = get_final_xarray(data=data, y_hat=y_hat, dataloader=test_dl, cfg=cfg)
+            _ds = get_individual_prediction_xarray_data(
+                data=data, y_hat=y_hat, dataloader=test_dl, cfg=cfg
+            )
             all_ds_predictions.append(_ds)
 
     print("... Merging all predictions to one xr.Dataset")
     # merge and save results
     preds = xr.merge(all_ds_predictions)
+    scatter_plot(preds, cfg, model="nn")
+
     preds.to_netcdf(cfg.run_dir / f"test_predictions_E{str(epoch).zfill(3)}.nc")
 
 
@@ -164,21 +137,29 @@ def _adjust_learning_rate(optimizer, new_lr: float):
         param_group["lr"] = new_lr
 
 
-def _test_sklearn_model(train_dl, valid_dl, cfg):
-    from sklearn.linear_model import LinearRegression
+def _test_sklearn_model(train_dl, test_dl, cfg):
+    from sklearn.linear_model import LinearRegression as LR
     import matplotlib.pyplot as plt
 
-    #  load all of the data into memory
-    x_d = np.array([data["y"].detach().numpy().squeeze() for data in train_dl])
-    y = np.array([data["y"].detach().numpy().squeeze() for data in train_dl])
-    x_d = x_d if x_d.ndim > 1 else x_d.reshape(-1, 1)
-    y = y if y.ndim > 1 else y.reshape(-1, 1)
-
-    reg = LinearRegression(normalize=True).fit(x_d, y)
+    #  load all of the TRAIN data into memory
+    data = load_all_data_from_dl_into_memory(train_dl)
+    x_d, y = data["x_d"], data["y"]
+    reg = LR(normalize=True).fit(x_d, y)
     plt.scatter(x_d, y, marker="x", alpha=0.1)
+    plt.plot(x_d, reg.predict(x_d), label="Predicted", color="C1")
+    plt.title(f"sklearn.LinearRegression R2: {reg.score(x_d, y):.2f}")
+    plt.legend()
     plt.gcf().savefig(cfg.run_dir / "scatter.png")
 
-    assert False
+    #  Run the test
+    data = load_all_data_from_dl_into_memory(test_dl)
+    x_d, y = data["x_d"], data["y"]
+    y_hat = reg.predict(x_d)
+
+    preds = data_in_memory_to_xarray(
+        data=data, y_hat=y_hat, cfg=cfg, dataloader=test_dl
+    )
+    scatter_plot(preds, cfg, model="sklearn")
 
 
 def train_and_validate(
@@ -286,6 +267,7 @@ if __name__ == "__main__":
         )
         valid_dl = PixelDataLoader(valid_ds, cfg=cfg, mode="validation")
 
+        _test_sklearn_model(train_dl, valid_dl, cfg)
         # _test_sklearn_model(train_dl, valid_dl, cfg)
 
     #  Run Evaluation only
@@ -305,17 +287,17 @@ if __name__ == "__main__":
     _set_seeds(cfg)
 
     # TODO: def get_model from lookup: Dict[str, Model]
-    # model = LSTM(
-    #     input_size=dl.input_size,
-    #     hidden_size=cfg.hidden_size,
-    #     output_size=dl.output_size,
-    #     forecast_horizon=cfg.horizon,
-    # ).to(cfg.device)
-    model = LinearRegression(
-        input_size=dl.input_size * cfg.seq_length,
+    model = LSTM(
+        input_size=dl.input_size,
+        hidden_size=cfg.hidden_size,
         output_size=dl.output_size,
         forecast_horizon=cfg.horizon,
     ).to(cfg.device)
+    # model = LinearRegression(
+    #     input_size=dl.input_size * cfg.seq_length,
+    #     output_size=dl.output_size,
+    #     forecast_horizon=cfg.horizon,
+    # ).to(cfg.device)
 
     print("-- Working with model: --")
     print(model)

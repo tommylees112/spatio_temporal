@@ -3,7 +3,6 @@ import xarray as xr
 import pandas as pd
 from pathlib import Path
 from typing import List, Tuple, Dict
-from collections import defaultdict
 from spatio_temporal.config import Config
 from spatio_temporal.data.dataloader import PixelDataLoader
 
@@ -157,27 +156,3 @@ def create_dummy_vci_ds():
     ds["boku_VCI"] = f(ds[["precip", "t2m", "SMsurf"]])
 
     return ds
-
-
-def _reshape(array: np.ndarray) -> np.ndarray:
-    return array if array.ndim > 1 else array.reshape(-1, 1)
-
-
-def load_all_dl_into_memory(dl: PixelDataLoader) -> Tuple[np.ndarray, ...]:
-    out = defaultdict(list)
-    for data in dl:
-        out["x_d"].append(data["x_d"].detach().numpy())
-        out["y"].append(data["y"].detach().numpy().squeeze())
-        out["time"].append(data["meta"]["target_time"].detach().numpy().squeeze())
-        out["index"].append(data["meta"]["index"].detach().numpy().squeeze())
-
-    return_dict: Dict[str, np.ndarray] = {}
-    for key in out.keys():
-        # concatenate over batch dimension (dimension = 0)
-        var_ = np.concatenate(out[key])
-        if key == "x_d":
-            var_ = var_.squeeze() if var_.ndim == 3 else var_
-        var_ = _reshape(var_)
-        return_dict[key] = var_
-
-    return return_dict

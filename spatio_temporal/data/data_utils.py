@@ -2,8 +2,9 @@ import pandas as pd
 import xarray as xr
 import numpy as np
 from numba import njit, prange
-from typing import List, Tuple, Optional, Union
+from typing import List, Tuple, Optional, Union, Any, Dict, DefaultDict
 from torch import Tensor
+from collections import defaultdict
 
 
 def _alternative_inf_freq(df, method="mode") -> pd.Timedelta:
@@ -118,3 +119,26 @@ def validate_samples(
                 continue
 
     return flag
+
+
+def _reshape(array: np.ndarray) -> np.ndarray:
+    return array if array.ndim > 1 else array.reshape(-1, 1)
+
+
+def load_all_data_from_dl_into_memory(dl: Any) -> Tuple[np.ndarray, ...]:
+    out: DefaultDict[List] = defaultdict(list)
+    for data in dl:
+        out["x_d"].append(data["x_d"].detach().numpy())
+        out["y"].append(data["y"].detach().numpy())
+        out["time"].append(data["meta"]["target_time"].detach().numpy())
+        out["index"].append(data["meta"]["index"].detach().numpy())
+
+    return_dict: Dict[str, np.ndarray] = {}
+    for key in out.keys():
+        # concatenate over batch dimension (dimension = 0)
+        var_ = np.concatenate(out[key])
+        var_ = var_.squeeze() if var_.ndim == 3 else var_
+        var_ = _reshape(var_)
+        return_dict[key] = var_
+
+    return return_dict

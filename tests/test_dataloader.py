@@ -14,8 +14,8 @@ from tests.utils import (
     create_and_assign_temp_run_path_to_config,
     create_sin_with_different_phases,
     create_linear_ds,
-    load_all_dl_into_memory,
 )
+from spatio_temporal.data.data_utils import load_all_data_from_dl_into_memory
 from spatio_temporal.data.dataloader import (
     XarrayDataset,
     PixelDataLoader,
@@ -29,7 +29,7 @@ TEST_REAL_DATA = True
 class TestDataLoader:
     # TODO: TEST FOR scrambled labels / mixing the features and timesteps axes / things like this
     def test_stack_xarray(self):
-        ds = _make_dataset().isel(lat=slice(0,2), lon=slice(0, 1))
+        ds = _make_dataset().isel(lat=slice(0, 2), lon=slice(0, 1))
         stacked, sample = _stack_xarray(ds, spatial_coords=["lat", "lon"])
 
         #  check that stacking works
@@ -48,7 +48,7 @@ class TestDataLoader:
         # check that works on 1D data too ...
 
     def test_correct_data_returned(self, tmp_path):
-        ds = _make_dataset().isel(lat=slice(0,2), lon=slice(0, 1))
+        ds = _make_dataset().isel(lat=slice(0, 2), lon=slice(0, 1))
         cfg = Config(Path("tests/testconfigs/test_config.yml"))
         create_and_assign_temp_run_path_to_config(cfg, tmp_path)
         dl = PixelDataLoader(ds, cfg=cfg, mode="train", DEBUG=True)
@@ -59,20 +59,24 @@ class TestDataLoader:
         pixel, _ = dl.dataset.lookup_table[int(data["meta"]["index"])]
 
         # check that the returned data is valid
-        # TODO: wrap into function for getting the valid times! 
+        #  TODO: wrap into function for getting the valid times!
         target_time = pd.to_datetime(
             np.array(data["meta"]["target_time"]).astype("datetime64[ns]").flatten()[0]
         )
         input_data_times = pd.to_datetime(stacked_ds.time.values)
-        target_index = input_data_times.get_loc(
-            target_time, method="nearest"
-        )
+        target_index = input_data_times.get_loc(target_time, method="nearest")
         min_input_time = input_data_times[target_index - cfg.seq_length]
         max_input_time = input_data_times[target_index - cfg.horizon]
-        input_vars = cfg.input_variables + ["autoregressive"] if cfg.autoregressive else cfg.input_variables
+        input_vars = (
+            cfg.input_variables + ["autoregressive"]
+            if cfg.autoregressive
+            else cfg.input_variables
+        )
 
         expected_x_feature = (
-            stacked_ds.sel(sample=pixel, time=slice(min_input_time, target_time))[input_vars]
+            stacked_ds.sel(sample=pixel, time=slice(min_input_time, target_time))[
+                input_vars
+            ]
             .to_array()
             .values.T
         )
@@ -92,7 +96,7 @@ class TestDataLoader:
             cfg = Config(path)
 
             create_and_assign_temp_run_path_to_config(cfg, tmp_path)
-            raw_ds = _make_dataset().isel(lat=slice(0,2), lon=slice(0, 1))
+            raw_ds = _make_dataset().isel(lat=slice(0, 2), lon=slice(0, 1))
             ds = XarrayDataset(raw_ds, cfg=cfg, mode="train", DEBUG=True)
 
             assert ds.target == target_variable
@@ -180,7 +184,9 @@ class TestDataLoader:
 
     def test_kenya_data(self, tmp_path):
         if TEST_REAL_DATA:
-            ds = pickle.load(Path("data/kenya.pkl").open("rb")).isel(lat=slice(0, 5), lon=slice(0, 5))
+            ds = pickle.load(Path("data/kenya.pkl").open("rb")).isel(
+                lat=slice(0, 5), lon=slice(0, 5)
+            )
             cfg = Config(Path("tests/testconfigs/config.yml"))
             create_and_assign_temp_run_path_to_config(cfg, tmp_path)
 
@@ -253,11 +259,16 @@ class TestDataLoader:
             horizon=cfg.horizon, alpha=alpha, beta=beta, epsilon_sigma=epsilon_sigma
         ).isel(lat=slice(0, 2), lon=slice(0, 2))
         dl = PixelDataLoader(
-            ds, cfg=cfg, num_workers=1, mode="train", batch_size=cfg.batch_size, DEBUG=True
+            ds,
+            cfg=cfg,
+            num_workers=1,
+            mode="train",
+            batch_size=cfg.batch_size,
+            DEBUG=True,
         )
 
         #  load all of the data into memory
-        data = load_all_dl_into_memory(dl)
+        data = load_all_data_from_dl_into_memory(dl)
         x = data["x_d"]
         assert x.shape[-1] == cfg.seq_length
         y = data["y"]
@@ -274,13 +285,11 @@ class TestDataLoader:
         pixel, target_index = dl.dataset.lookup_table[idx]
         latlon = tuple([float(l) for l in str(pixel).split("_")])
         target_time = times[INDEX]
-        
-        # get the correct times (weird indexing becuase of imperfect translation of float -> datetime64[ns])
+
+        #  get the correct times (weird indexing becuase of imperfect translation of float -> datetime64[ns])
         min_time = target_time - DateOffset(months=(cfg.seq_length - cfg.horizon) + 1)
         max_time = min_time + DateOffset(months=cfg.seq_length)
-        input_times = pd.date_range(
-            min_time, max_time, freq="M"
-        )[:cfg.seq_length]
+        input_times = pd.date_range(min_time, max_time, freq="M")[: cfg.seq_length]
 
         #  recreate the data that should be loaded from the raw xr.Dataset
         stacked, _ = _stack_xarray(ds, spatial_coords=cfg.pixel_dims)
@@ -311,31 +320,33 @@ class TestDataLoader:
             dataset_loaded == expected
         ), f"The dataloader is saving the wrong data to the lookup table. {dataset_loaded[:10]} {expected[:10]}"
 
-        # get input X data from INDEX (not times)
+        #  get input X data from INDEX (not times)
         min_index = int((target_index - cfg.seq_length - cfg.horizon) + 1)
         max_index = int((target_index - cfg.horizon) + 1)
-        _x_d_index_values = all_x.values[min_index: max_index]
-        
+        _x_d_index_values = all_x.values[min_index:max_index]
+
         assert np.allclose(
             _x_d.values, x[INDEX]
         ), "The Dynamic Data is not the data we expect"
-        assert np.allclose(
-            _x_d_index_values, _x_d.values
-        )
+        assert np.allclose(_x_d_index_values, _x_d.values)
 
         #  check that the raw data is the linear combination we expect
         # "target" should be linear combination of previous timestep "feature"
         # (y = x @ [0, 2])
         zeros = np.zeros((cfg.seq_length - 1, 1))
         betas = np.append(zeros, beta).reshape(-1, 1)
-        unnorm_x = dl.dataset.normalizer.individual_inverse(x[INDEX], pixel_id=pixel, variable=cfg.input_variables[0])
-        unnorm_y = dl.dataset.normalizer.individual_inverse(y[INDEX], pixel_id=pixel, variable=cfg.target_variable)
-        
-        # time=target_time,
+        unnorm_x = dl.dataset.normalizer.individual_inverse(
+            x[INDEX], pixel_id=pixel, variable=cfg.input_variables[0]
+        )
+        unnorm_y = dl.dataset.normalizer.individual_inverse(
+            y[INDEX], pixel_id=pixel, variable=cfg.target_variable
+        )
+
+        #  time=target_time,
         ds.sel(lat=latlon[0], lon=latlon[1], method="nearest")[cfg.target_variable]
         assert unnorm_x @ betas == unnorm_y
 
-        # TODO: what would be the error in the normalized space
+        #  TODO: what would be the error in the normalized space
         # y_hat = x @ betas
         # assert np.allclose(y_hat, y)
 
@@ -357,7 +368,7 @@ class TestDataLoader:
         assert y.shape == (cfg.batch_size, cfg.horizon, 1)
 
     def test_static_inputs(self, tmp_path):
-        ds = _make_dataset().isel(lat=slice(0,2), lon=slice(0, 1))
+        ds = _make_dataset().isel(lat=slice(0, 2), lon=slice(0, 1))
         ds_static = ds.mean(dim="time")
 
         cfg = Config(Path("tests/testconfigs/test_config.yml"))
@@ -365,7 +376,7 @@ class TestDataLoader:
         assert False
 
     def test_forecast_inputs(self, tmp_path):
-        ds = _make_dataset().isel(lat=slice(0,2), lon=slice(0, 1))
+        ds = _make_dataset().isel(lat=slice(0, 2), lon=slice(0, 1))
         ds_forecast = ds.shift(1).drop("target").rename({"feature": "feature_fcast1"})
         ds = xr.merge([ds, ds_forecast])
 
