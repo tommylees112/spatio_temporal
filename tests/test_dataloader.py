@@ -15,7 +15,10 @@ from tests.utils import (
     create_sin_with_different_phases,
     create_linear_ds,
 )
-from spatio_temporal.data.data_utils import (load_all_data_from_dl_into_memory, validate_samples)
+from spatio_temporal.data.data_utils import (
+    load_all_data_from_dl_into_memory,
+    validate_samples,
+)
 from spatio_temporal.data.dataloader import (
     XarrayDataset,
     PixelDataLoader,
@@ -144,8 +147,8 @@ class TestDataLoader:
                 assert np.allclose(y_unnorm.reshape(y_exp.values.shape), y_exp.values)
 
     def test_validate_samples(self):
-        # create data with nans
-        # ensure that the validate_samples correctly ignores them based on these criteria
+        #  create data with nans
+        #  ensure that the validate_samples correctly ignores them based on these criteria
         #  1. not enough history (seq_length > history)
         #  5. not enough data for forecast horizon
         #  2. NaN in the dynamic inputs
