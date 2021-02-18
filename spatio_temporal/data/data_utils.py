@@ -128,17 +128,18 @@ def _reshape(array: np.ndarray) -> np.ndarray:
 def load_all_data_from_dl_into_memory(dl: Any) -> Tuple[np.ndarray, ...]:
     out: DefaultDict[List] = defaultdict(list)
     for data in dl:
-        try:
-            out["x_d"].append(data["x_d"].detach().numpy())
-            out["y"].append(data["y"].detach().numpy())
-            out["time"].append(data["meta"]["target_time"].detach().numpy())
-            out["index"].append(data["meta"]["index"].detach().numpy())
-        except TypeError as e:
-            #  GPU .cpu() needed
-            out["x_d"].append(data["x_d"].detach().cpu().numpy())
-            out["y"].append(data["y"].detach().cpu().numpy())
-            out["time"].append(data["meta"]["target_time"].detach().cpu().numpy())
-            out["index"].append(data["meta"]["index"].detach().cpu().numpy())
+        # TODO: don't do this on GPU ..?
+        # try:
+        out["x_d"].append(data["x_d"].detach().cpu().numpy())
+        out["y"].append(data["y"].detach().cpu().numpy())
+        out["time"].append(data["meta"]["target_time"].detach().cpu().numpy())
+        out["index"].append(data["meta"]["index"].detach().cpu().numpy())
+        # except TypeError as e:
+        #     #  GPU .cpu() needed
+        #     out["x_d"].append(data["x_d"].detach().cpu().numpy())
+        #     out["y"].append(data["y"].detach().cpu().numpy())
+        #     out["time"].append(data["meta"]["target_time"].detach().cpu().numpy())
+        #     out["index"].append(data["meta"]["index"].detach().cpu().numpy())
 
     return_dict: Dict[str, np.ndarray] = {}
     for key in out.keys():

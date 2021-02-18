@@ -14,11 +14,13 @@ def _create_dict_data_coords_for_individual_sample(
 ) -> Dict[str, Tuple[str, np.ndarray]]:
     # a tuple of (dims, data) ready for xr.Dataset creation
     #  TODO: forecast horizon ... ?
+    # TODO: how to deal with gpu in a more realistic way
     data = {}
-    y = y.view(1, -1).detach().numpy() if isinstance(y, Tensor) else y.reshape(1, -1)
+    y = y.view(1, -1).detach().cpu().numpy()
+    y = y if isinstance(y, Tensor) else y.reshape(1, -1)
     data["obs"] = (("pixel", "time"), y)
     y_hat = (
-        y_hat.view(1, -1).detach().numpy()
+        y_hat.view(1, -1).detach().cpu().numpy()
         if isinstance(y_hat, Tensor)
         else y_hat.reshape(1, -1)
     )
@@ -38,7 +40,7 @@ def convert_individual_to_xarray(
     )
     index = int(data["meta"]["index"])
     times = (
-        data["meta"]["target_time"].detach().numpy().astype("datetime64[ns]").squeeze()
+        data["meta"]["target_time"].detach().cpu().numpy().astype("datetime64[ns]").squeeze()
     )
     times = times.reshape(-1) if times.ndim == 0 else times
     pixel, _ = dataloader.dataset.lookup_table[int(index)]
@@ -83,11 +85,11 @@ def data_in_memory_to_xarray(
     dataloader: PixelDataLoader,
 ) -> xr.Dataset:
     y = data["y"]
-    y = y.detach().numpy() if isinstance(y, Tensor) else y
-    y_hat = y_hat.detach().numpy() if isinstance(y_hat, Tensor) else y_hat
+    y = y.detach().cpu().numpy() if isinstance(y, Tensor) else y
+    y_hat = y_hat.detach().cpu().numpy() if isinstance(y_hat, Tensor) else y_hat
 
     times = (
-        data["time"].detach().numpy()
+        data["time"].detach().cpu().numpy()
         if isinstance(data["time"], Tensor)
         else data["time"]
     )
