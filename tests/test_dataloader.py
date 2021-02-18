@@ -15,7 +15,7 @@ from tests.utils import (
     create_sin_with_different_phases,
     create_linear_ds,
 )
-from spatio_temporal.data.data_utils import load_all_data_from_dl_into_memory
+from spatio_temporal.data.data_utils import (load_all_data_from_dl_into_memory, validate_samples)
 from spatio_temporal.data.dataloader import (
     XarrayDataset,
     PixelDataLoader,
@@ -142,6 +142,17 @@ class TestDataLoader:
                     lat=latlon[0], lon=latlon[1], time=times, method="nearest"
                 )[cfg.target_variable]
                 assert np.allclose(y_unnorm.reshape(y_exp.values.shape), y_exp.values)
+
+    def test_validate_samples(self):
+        # create data with nans
+        # ensure that the validate_samples correctly ignores them based on these criteria
+        #  1. not enough history (seq_length > history)
+        #  5. not enough data for forecast horizon
+        #  2. NaN in the dynamic inputs
+        #  3. NaN in the outputs (only for training period)
+        #  4. any NaN in the static features makes the target_index invalid
+        validate_samples
+        assert False
 
     def test_dataloader(self, tmp_path):
         ds = _make_dataset().isel(lat=slice(0, 2), lon=slice(0, 2))
