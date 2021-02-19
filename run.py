@@ -34,6 +34,8 @@ from spatio_temporal.training.eval_utils import (
     data_in_memory_to_xarray,
     scatter_plot,
     get_lists_of_metadata,
+    plot_loss_curves,
+    save_losses,
 )
 
 
@@ -276,18 +278,12 @@ if __name__ == "__main__":
     print()
 
     if mode == "train":
-        train_losses, valid_losses = train_and_validate(cfg, train_dl, valid_dl, model)
+        losses = train_and_validate(cfg, train_dl, valid_dl, model)
         run_test(cfg, test_dl, model)
 
         # save the loss curves
-        f, ax = plt.subplots()
-        ax.plot(train_losses, label="Train")
-        ax.plot(valid_losses, label="Validation")
-        f.savefig(cfg.run_dir / "loss_curves.png")
-        df = pd.DataFrame(
-            {"train": train_losses.flatten(), "validation": valid_losses.flatten()}
-        )
-        df.to_csv(cfg.run_dir / "losses.csv")
+        plot_loss_curves(losses, cfg)
+        save_losses(losses, cfg)
 
     elif mode == "evaluate":
         # RUN TEST !

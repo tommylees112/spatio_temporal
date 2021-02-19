@@ -45,9 +45,11 @@ def get_lists_of_metadata(
     pixels = np.array(
         [dataloader.dataset.lookup_table[int(index)][0] for index in indexes]
     )
-    # TODO: fix this hack (maybe remove times from being stored in data)
+    #  TODO: fix this hack (maybe remove times from being stored in data)
     if times.size == 0:
-        target_ixs = [int(dataloader.dataset.lookup_table[int(index)][-1]) for index in indexes]
+        target_ixs = [
+            int(dataloader.dataset.lookup_table[int(index)][-1]) for index in indexes
+        ]
         times_ = []
         for target_ix, pixel in zip(target_ixs, pixels):
             times_.append(dataloader.dataset.times[pixel][target_ix])
@@ -164,3 +166,22 @@ def scatter_plot(preds: xr.Dataset, cfg: Config, model: str = "nn") -> None:
     ax.set_title(f"{model} Observed vs. Predicted")
 
     f.savefig(cfg.run_dir / f"scatter_{model}.png")
+
+
+def plot_loss_curves(losses: Tuple[np.ndarray, ...], cfg: Config) -> None:
+    train_losses, valid_losses = losses
+    f, ax = plt.subplots()
+    ax.plot(train_losses, label="Train", color="C0", marker="x")
+    ax.plot(valid_losses, label="Validation", color="C1", marker="x")
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Loss")
+    plt.legend()
+    f.savefig(cfg.run_dir / "loss_curves.png")
+
+
+def save_losses(losses: Tuple[np.ndarray, ...], cfg: Config) -> None:
+    train_losses, valid_losses = losses
+    df = pd.DataFrame(
+        {"train": train_losses.flatten(), "validation": valid_losses.flatten()}
+    )
+    df.to_csv(cfg.run_dir / "losses.csv")
