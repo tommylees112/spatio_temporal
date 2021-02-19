@@ -116,7 +116,8 @@ class XarrayDataset(Dataset):
 
         ds = self.normalizer.transform(ds)
         return ds
-(
+
+    def store_data(
         self,
         pixel: str,
         x_d: np.ndarray,
@@ -180,7 +181,8 @@ class XarrayDataset(Dataset):
             [lookup.append((pixel, smp)) for smp in valid_samples]
 
             # store data if basin has at least ONE valid sample
-            if valid_samples.size > 0:(pixel, x_d=x_d, y=y, x_s=x_s, times=times)
+            if valid_samples.size > 0:
+                self.store_data(pixel, x_d=x_d, y=y, x_s=x_s, times=times)
             else:
                 pixels_without_samples.append(pixel)
 
