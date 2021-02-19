@@ -222,9 +222,9 @@ if __name__ == "__main__":
     data_dir = Path("data")
     # ds = pickle.load((data_dir / "kenya.pkl").open("rb"))
     # ds = ds.isel(lat=slice(0, 10), lon=slice(0, 10))
-    ds = create_linear_ds().isel(lat=slice(0, 5), lon=slice(0, 5))
-    # ds = xr.open_dataset(data_dir / "ALL_dynamic_ds.nc")
-    # ds = ds.isel(station_id=slice(0, 10))
+    # ds = create_linear_ds().isel(lat=slice(0, 5), lon=slice(0, 5))
+    ds = xr.open_dataset(data_dir / "ALL_dynamic_ds.nc")
+    ds = ds.isel(station_id=slice(0, 10))
 
     #  Run Training and Evaluation
     if mode == "train":
