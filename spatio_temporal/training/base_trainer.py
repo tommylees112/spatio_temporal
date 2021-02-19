@@ -13,6 +13,7 @@ class BaseTrainer:
         self.cfg = cfg
         self.model = None
         self.optimizer = None
+        self.n_epochs = self.cfg.n_epochs
 
     def _set_random_seeds(self):
         if self.cfg.seed is None:
