@@ -2,11 +2,14 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 from pathlib import Path
+import pickle
 from typing import List, Tuple, Dict
+
 from spatio_temporal.config import Config
 from spatio_temporal.data.dataloader import PixelDataLoader
-from spatio_temporal.data.data_utils import load_all_data_from_dl_into_memory
+from spatio_temporal.data.data_utils import load_all_data_from_dl_into_memory, _stack_xarray
 from spatio_temporal.training.eval_utils import data_in_memory_to_xarray, scatter_plot
+from spatio_temporal.data.normalizer import Normalizer
 
 
 def _make_dataset(
@@ -190,3 +193,14 @@ def _test_sklearn_model(train_dl, test_dl, cfg):
         data=data, y_hat=y_hat, cfg=cfg, dataloader=test_dl
     )
     scatter_plot(preds, cfg, model="sklearn")
+
+
+def _create_dummy_normalizer(ds: xr.Dataset, cfg: Config):
+    # FIRST STACK
+    stacked, _ = _stack_xarray(ds, cfg.pixel_dims)
+
+    # THEN NORMALIZE
+    normalizer = Normalizer(fit_ds=stacked)
+    pickle.dump(
+        normalizer, (cfg.run_dir / "normalizer.pkl").open("wb")
+    )

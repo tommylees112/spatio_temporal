@@ -58,8 +58,6 @@ if __name__ == "__main__":
     trainer = Trainer(cfg, ds)
     tester = Tester(cfg, ds)
 
-    # TODO: def get_model from lookup: Dict[str, Model]
-    model = trainer.model
 
     if baseline:
         print("Testing sklearn Linear Regression")
@@ -67,6 +65,7 @@ if __name__ == "__main__":
         test_dl = tester.test_dl
         _test_sklearn_model(train_dl, test_dl, cfg)
 
+    model = trainer.model
     print(model)
     print()
 
