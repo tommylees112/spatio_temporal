@@ -41,9 +41,17 @@ def get_lists_of_metadata(
         .squeeze()
     )
     times = times.reshape(-1) if times.ndim == 0 else times
+
     pixels = np.array(
         [dataloader.dataset.lookup_table[int(index)][0] for index in indexes]
     )
+    # TODO: fix this hack (maybe remove times from being stored in data)
+    if times.size == 0:
+        target_ixs = [int(dataloader.dataset.lookup_table[int(index)][-1]) for index in indexes]
+        times_ = []
+        for target_ix, pixel in zip(target_ixs, pixels):
+            times_.append(dataloader.dataset.times[pixel][target_ix])
+        times = np.array(times_).astype("datetime64[ns]")
 
     return pixels, times
 
