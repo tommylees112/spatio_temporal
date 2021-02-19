@@ -7,6 +7,7 @@ from functools import partial
 from typing import Dict, Tuple, Optional, Any, Union
 from tqdm import tqdm
 import argparse
+from collections import defaultdict
 import matplotlib.pyplot as plt
 
 # pytorch imports
@@ -23,7 +24,7 @@ from spatio_temporal.model.linear_regression import LinearRegression
 from spatio_temporal.config import Config
 from spatio_temporal.training.trainer import Trainer
 from spatio_temporal.model.losses import RMSELoss
-from spatio_temporal.data.data_utils import load_all_data_from_dl_into_memory
+from spatio_temporal.data.data_utils import load_all_data_from_dl_into_memory, _reshape
 from tests.utils import create_linear_ds, create_dummy_vci_ds, _test_sklearn_model
 from spatio_temporal.training.eval_utils import (
     _create_dict_data_coords_for_individual_sample,
@@ -32,6 +33,7 @@ from spatio_temporal.training.eval_utils import (
     get_individual_prediction_xarray_data,
     data_in_memory_to_xarray,
     scatter_plot,
+    get_lists_of_metadata,
 )
 
 
@@ -78,23 +80,31 @@ def run_test(cfg: Config, test_dl: PixelDataLoader, model):
 
     all_ds_predictions = []
     model.eval()
+
+    out = defaultdict(list)
     with torch.no_grad():
         test_pbar = tqdm(test_dl, desc=f"Test set Forward Pass: ")
         for data in test_pbar:
             x, y = data["x_d"], data["y"]
             y_hat = model(x)
 
-            # TODO: deal with multiple forecast horizons
-            # (y_hat["y_hat"].squeeze().shape[0] > 1)
-            #  get the final prediction
-            _ds = get_individual_prediction_xarray_data(
-                data=data, y_hat=y_hat, dataloader=test_dl, cfg=cfg
-            )
-            all_ds_predictions.append(_ds)
+            out["sim"].append(y_hat["y_hat"].detach().cpu().numpy())
+            out["obs"].append(y.detach().cpu().numpy())
+            pixels, times = get_lists_of_metadata(data, test_dl)
+            out["time"].append(times)
+            out["pixel"].append(pixels)
 
-    print("... Merging all predictions to one xr.Dataset")
-    # merge and save results
-    preds = xr.merge(all_ds_predictions)
+    return_dict: Dict[str, np.ndarray] = {}
+    for key in out.keys():
+        # concatenate over batch dimension (dimension = 0)
+        var_ = np.concatenate(out[key])
+        var_ = var_.squeeze() if var_.ndim == 3 else var_
+        var_ = _reshape(var_)
+        return_dict[key] = var_.flatten() if var_.shape[-1] == 1 else var_
+
+    #  TODO: deal with multiple target variables (fh > 1)
+    _preds = pd.DataFrame(return_dict).set_index(["pixel", "time"])
+    preds = _preds.to_xarray()
     scatter_plot(preds, cfg, model="nn")
 
     preds.to_netcdf(cfg.run_dir / f"test_predictions_E{str(epoch).zfill(3)}.nc")
@@ -212,9 +222,9 @@ if __name__ == "__main__":
     data_dir = Path("data")
     # ds = pickle.load((data_dir / "kenya.pkl").open("rb"))
     # ds = ds.isel(lat=slice(0, 10), lon=slice(0, 10))
-    # ds = create_linear_ds()
-    ds = xr.open_dataset(data_dir / "ALL_dynamic_ds.nc")
-    ds = ds.isel(station_id=slice(0, 10))
+    ds = create_linear_ds().isel(lat=slice(0, 5), lon=slice(0, 5))
+    # ds = xr.open_dataset(data_dir / "ALL_dynamic_ds.nc")
+    # ds = ds.isel(station_id=slice(0, 10))
 
     #  Run Training and Evaluation
     if mode == "train":
@@ -240,12 +250,14 @@ if __name__ == "__main__":
     dl = train_dl = PixelDataLoader(
         train_ds, cfg=cfg, mode="train", batch_size=cfg.batch_size
     )
-    valid_dl = PixelDataLoader(valid_ds, cfg=cfg, mode="validation", batch_size=cfg.batch_size)
+    valid_dl = PixelDataLoader(
+        valid_ds, cfg=cfg, mode="validation", batch_size=cfg.batch_size
+    )
 
     test_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
         time=slice(cfg.test_start_date, cfg.test_end_date)
     )
-    test_dl = PixelDataLoader(test_ds, cfg=cfg, mode="test")
+    test_dl = PixelDataLoader(test_ds, cfg=cfg, mode="test", batch_size=cfg.batch_size)
 
     if baseline:
         print("Testing sklearn Linear Regression")
@@ -264,18 +276,18 @@ if __name__ == "__main__":
     print()
 
     if mode == "train":
-        train_losses, valid_losses = train_and_validate(
-            cfg, train_dl, valid_dl, model
-        )
+        train_losses, valid_losses = train_and_validate(cfg, train_dl, valid_dl, model)
         run_test(cfg, test_dl, model)
-        
+
         # save the loss curves
         f, ax = plt.subplots()
         ax.plot(train_losses, label="Train")
         ax.plot(valid_losses, label="Validation")
-        f.savegfig(cfg.run_dir / "loss_curves.png")
-        df = pd.DataFrame({"train": train_losses.flatten(), "validation": valid_losses.flatten()})
-        df.to_csv(cfg.run_fir / "losses.csv")
+        f.savefig(cfg.run_dir / "loss_curves.png")
+        df = pd.DataFrame(
+            {"train": train_losses.flatten(), "validation": valid_losses.flatten()}
+        )
+        df.to_csv(cfg.run_dir / "losses.csv")
 
     elif mode == "evaluate":
         # RUN TEST !

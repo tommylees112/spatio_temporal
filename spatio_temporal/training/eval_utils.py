@@ -14,7 +14,7 @@ def _create_dict_data_coords_for_individual_sample(
 ) -> Dict[str, Tuple[str, np.ndarray]]:
     # a tuple of (dims, data) ready for xr.Dataset creation
     #  TODO: forecast horizon ... ?
-    # TODO: how to deal with gpu in a more realistic way
+    #  TODO: how to deal with gpu in a more realistic way
     data = {}
     y = y.view(1, -1).detach().cpu().numpy()
     y = y if isinstance(y, Tensor) else y.reshape(1, -1)
@@ -28,6 +28,26 @@ def _create_dict_data_coords_for_individual_sample(
     return data
 
 
+def get_lists_of_metadata(
+    data: Dict[str, Union[Tensor, Any]], dataloader
+) -> Tuple[np.ndarray, ...]:
+    indexes = [int(ix) for ix in data["meta"]["index"]]
+    times = (
+        data["meta"]["target_time"]
+        .detach()
+        .cpu()
+        .numpy()
+        .astype("datetime64[ns]")
+        .squeeze()
+    )
+    times = times.reshape(-1) if times.ndim == 0 else times
+    pixels = np.array(
+        [dataloader.dataset.lookup_table[int(index)][0] for index in indexes]
+    )
+
+    return pixels, times
+
+
 def convert_individual_to_xarray(
     data: Dict[str, Union[Tensor, Any]],
     y_hat: Tensor,
@@ -35,17 +55,19 @@ def convert_individual_to_xarray(
     dataloader,
 ) -> xr.Dataset:
     # back convert to xarray object ...
-    data_xr = _create_dict_data_coords_for_individual_sample(
-        y_hat=y_hat["y_hat"], y=data["y"]
-    )
-    index = int(data["meta"]["index"])
-    times = (
-        data["meta"]["target_time"].detach().cpu().numpy().astype("datetime64[ns]").squeeze()
-    )
-    times = times.reshape(-1) if times.ndim == 0 else times
-    pixel, _ = dataloader.dataset.lookup_table[int(index)]
+    assert dataloader.batch_size < 2, "This method does not work for batch sizes > 1"
+    times, pixels = get_lists_of_metadata(data, dataloader)
 
-    ds = xr.Dataset(data_xr, coords={"time": times, "pixel": [pixel]})
+    # reshape data to N PIXELS; N TIMES
+    n_pixels = len(np.unique(pixels))
+    n_times = len(np.unique(times))
+
+    data_xr = _create_dict_data_coords_for_individual_sample(
+        y_hat=y_hat["y_hat"].reshape(n_pixels, n_times),
+        y=data["y"].reshape(n_pixels, n_times),
+    )
+
+    ds = xr.Dataset(data_xr, coords={"time": times, "pixel": np.unique(pixels)})
     return ds
 
 
