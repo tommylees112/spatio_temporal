@@ -168,7 +168,7 @@ def scatter_plot(preds: xr.Dataset, cfg: Config, model: str = "nn") -> None:
     f.savefig(cfg.run_dir / f"scatter_{model}.png")
 
 
-def plot_loss_curves(losses: Tuple[np.ndarray, ...], cfg: Config) -> None:
+def plot_loss_curves(losses: Tuple[np.ndarray, np.ndarray], cfg: Config) -> None:
     train_losses, valid_losses = losses
     f, ax = plt.subplots()
     ax.plot(train_losses, label="Train", color="C0", marker="x")
@@ -179,7 +179,7 @@ def plot_loss_curves(losses: Tuple[np.ndarray, ...], cfg: Config) -> None:
     f.savefig(cfg.run_dir / "loss_curves.png")
 
 
-def save_losses(losses: Tuple[np.ndarray, ...], cfg: Config) -> None:
+def save_losses(losses: Tuple[np.ndarray, np.ndarray], cfg: Config) -> None:
     train_losses, valid_losses = losses
     df = pd.DataFrame(
         {"train": train_losses.flatten(), "validation": valid_losses.flatten()}

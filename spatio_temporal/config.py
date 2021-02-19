@@ -184,7 +184,7 @@ class Config:
         return self.get_mandatory_attrs("batch_size")
 
     @property
-    def input_variables(self) -> Union[List[str], Dict[str, List[str]]]:
+    def input_variables(self) -> List[str]:
         return self.get_mandatory_attrs("input_variables")
 
     @property
