@@ -55,16 +55,6 @@ def _get_args() -> dict:
     return args
 
 
-def _save_epoch_information(run_dir: Path, epoch: int, model, optimizer) -> None:
-    # SAVE model weights
-    weight_path = run_dir / f"model_epoch{epoch:03d}.pt"
-    torch.save(model.state_dict(), str(weight_path))
-
-    # SAVE optimizer state dict
-    optimizer_path = run_dir / f"optimizer_state_epoch{epoch:03d}.pt"
-    torch.save(optimizer.state_dict(), str(optimizer_path))
-
-
 def _get_weight_file(cfg: Config, epoch: Optional[int] = None) -> Path:
     """Get file path to weight file"""
     if epoch is None:
@@ -112,108 +102,6 @@ def run_test(cfg: Config, test_dl: PixelDataLoader, model):
     preds.to_netcdf(cfg.run_dir / f"test_predictions_E{str(epoch).zfill(3)}.nc")
 
 
-def _get_loss_obj(cfg: Config):
-    if cfg.loss == "MSE":
-        loss_fn = nn.MSELoss()
-    if cfg.loss == "RMSE":
-        loss_fn = RMSELoss()
-    if cfg.loss == "huber":
-        loss_fn = nn.SmoothL1Loss()
-
-    return loss_fn
-
-
-def _get_optimizer(cfg: Config):
-    if cfg.optimizer == "Adam":
-        optimizer = torch.optim.Adam(
-            [pam for pam in model.parameters()], lr=cfg.learning_rate
-        )
-    return optimizer
-
-
-def _adjust_learning_rate(optimizer, new_lr: float):
-    # TODO: adjust the learning rate as go through
-    for param_group in optimizer.param_groups:
-        old_lr = param_group["lr"]
-        param_group["lr"] = new_lr
-
-
-def train_and_validate(
-    cfg: Config, train_dl: PixelDataLoader, valid_dl: PixelDataLoader, model
-):
-    # TODO: move as much of this as possible to the Trainer object!
-    # get loss & optimizer
-    loss_fn = _get_loss_obj(cfg)
-    optimizer = _get_optimizer(cfg)
-    train_losses_all = []
-    valid_losses_all = []
-
-    for epoch in range(1, cfg.n_epochs + 1):
-        model.train()
-        train_loss = []
-
-        #  batch the training data
-        pbar = tqdm(train_dl, desc=f"Training Epoch {epoch}: ")
-        for data in pbar:
-            x, y = data["x_d"], data["y"]
-
-            #  zero gradient before forward pass
-            optimizer.zero_grad()
-
-            # forward pass
-            y_hat = model(x)
-
-            # measure loss on forecasts
-            if not (y_hat["y_hat"].ndim == y.ndim):
-                y = y.squeeze(0)
-            loss = loss_fn(y_hat["y_hat"], y)
-
-            if torch.isnan(loss):
-                #  TODO: why nans with 0 horizon inputs
-                assert False
-
-            # backward pass (get gradients, step optimizer, delete old gradients)
-            loss.backward()
-            optimizer.step()
-
-            if cfg.clip_gradient_norm is not None:
-                torch.nn.utils.clip_grad_norm_(
-                    model.parameters(), cfg.clip_gradient_norm
-                )
-
-            # memorize the training loss
-            train_loss.append(loss.item())
-            pbar.set_postfix_str(f"{loss.item():.2f}")
-
-        epoch_train_loss = np.mean(train_loss)
-
-        # Save epoch weights
-        _save_epoch_information(cfg.run_dir, epoch, model=model, optimizer=optimizer)
-
-        #  TODO: early stopping
-        # batch the validation data each epoch
-        val_pbar = tqdm(valid_dl, desc=f"Validation Epoch {epoch}: ")
-        with torch.no_grad():
-            valid_loss = []
-            for data in val_pbar:
-                x_val, y_val = data["x_d"], data["y"]
-                y_hat_val = model(x_val)
-                val_loss = loss_fn(y_hat_val["y_hat"], y_val)
-
-                # if torch.isnan(val_loss):
-                #     assert False, "Why is this happening?"
-                valid_loss.append(val_loss.item())
-
-        epoch_valid_loss = np.mean(valid_loss)
-        print(f"Train Loss: {np.sqrt(epoch_train_loss):.2f}")
-        print(f"Valid Loss: {np.sqrt(epoch_valid_loss):.2f}")
-
-        train_losses_all.append(epoch_train_loss)
-        valid_losses_all.append(epoch_valid_loss)
-
-    return np.array(train_losses_all), np.array(valid_losses_all)
-
-
 if __name__ == "__main__":
     #  TODO: linear model still has errors when fh = 0
     args = _get_args()
@@ -224,9 +112,9 @@ if __name__ == "__main__":
     data_dir = Path("data")
     # ds = pickle.load((data_dir / "kenya.pkl").open("rb"))
     # ds = ds.isel(lat=slice(0, 10), lon=slice(0, 10))
-    # ds = create_linear_ds().isel(lat=slice(0, 5), lon=slice(0, 5))
-    ds = xr.open_dataset(data_dir / "ALL_dynamic_ds.nc")
-    ds = ds.isel(station_id=slice(0, 10))
+    ds = create_linear_ds().isel(lat=slice(0, 5), lon=slice(0, 5))
+    # ds = xr.open_dataset(data_dir / "ALL_dynamic_ds.nc")
+    # ds = ds.isel(station_id=slice(0, 10))
 
     #  Run Training and Evaluation
     if mode == "train":
@@ -234,7 +122,7 @@ if __name__ == "__main__":
         assert config_file.exists(), f"Expect config file at {config_file}"
 
         cfg = Config(cfg_path=config_file)
-        trainer = Trainer(cfg, ds)
+
     #  Run Evaluation only
     else:
         #  tester = Tester(cfg, ds)
@@ -242,36 +130,17 @@ if __name__ == "__main__":
         cfg = Config(cfg_path=test_dir / "config.yml")
 
     # Train test split
-    # Get DataLoaders
-    train_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
-        time=slice(cfg.train_start_date, cfg.train_end_date)
-    )
-    valid_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
-        time=slice(cfg.validation_start_date, cfg.validation_end_date)
-    )
-    dl = train_dl = PixelDataLoader(
-        train_ds, cfg=cfg, mode="train", batch_size=cfg.batch_size
-    )
-    valid_dl = PixelDataLoader(
-        valid_ds, cfg=cfg, mode="validation", batch_size=cfg.batch_size
-    )
+    trainer = Trainer(cfg, ds)
+    dl = train_dl = trainer.train_dl
+    valid_dl = trainer.valid_dl
+    test_dl = trainer.test_dl
 
-    test_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
-        time=slice(cfg.test_start_date, cfg.test_end_date)
-    )
-    test_dl = PixelDataLoader(test_ds, cfg=cfg, mode="test", batch_size=cfg.batch_size)
+    # TODO: def get_model from lookup: Dict[str, Model]
+    model = trainer.model
 
     if baseline:
         print("Testing sklearn Linear Regression")
         _test_sklearn_model(train_dl, test_dl, cfg)
-
-    # TODO: def get_model from lookup: Dict[str, Model]
-    model = LSTM(
-        input_size=dl.input_size,
-        hidden_size=cfg.hidden_size,
-        output_size=dl.output_size,
-        forecast_horizon=cfg.horizon,
-    ).to(cfg.device)
 
     print("-- Working with model: --")
     print(model)

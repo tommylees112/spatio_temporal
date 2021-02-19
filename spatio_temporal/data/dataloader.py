@@ -13,7 +13,7 @@ from tqdm import tqdm
 from typing import List, Tuple, Optional, Dict
 from torch.utils.data import Dataset, DataLoader
 from torch import Tensor
-from spatio_temporal.data.normaliser import Normalizer
+from spatio_temporal.data.normalizer import Normalizer
 from spatio_temporal.config import Config
 from spatio_temporal.data.dataset import XarrayDataset
 

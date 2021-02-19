@@ -6,7 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from spatio_temporal.data.dataloader import PixelDataLoader
 from spatio_temporal.config import Config
-from spatio_temporal.data.normaliser import Normalizer
+from spatio_temporal.data.normalizer import Normalizer
 
 
 def _create_dict_data_coords_for_individual_sample(

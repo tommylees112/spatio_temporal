@@ -13,7 +13,7 @@ from spatio_temporal.data.data_utils import (
     _stack_xarray,
     validate_samples,
 )
-from spatio_temporal.data.normaliser import Normalizer
+from spatio_temporal.data.normalizer import Normalizer
 from spatio_temporal.config import Config
 
 
@@ -64,6 +64,9 @@ class XarrayDataset(Dataset):
         self.forecast_variables = self.cfg.forecast_variables
 
         ds: xr.Dataset = stacked
+
+        #  TODO: make normalizer optional (e.g. for Runoff data)
+        #  TODO: normalize only specific variables, e.g. inputs not outputs
         ds = self.run_normalisation(ds, normalizer=normalizer)
         if self.DEBUG:
             # save the stacked dataset to memory to check dataloading
