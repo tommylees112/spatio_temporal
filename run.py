@@ -1,5 +1,5 @@
 from pathlib import Path
-import xarray as xr 
+import xarray as xr
 import pickle
 import argparse
 
@@ -7,7 +7,11 @@ import argparse
 from spatio_temporal.config import Config
 from spatio_temporal.training.trainer import Trainer
 from spatio_temporal.training.tester import Tester
-from tests.utils import create_linear_ds, _test_sklearn_model
+from tests.utils import (
+    create_linear_ds,
+    _test_sklearn_model,
+    get_pollution_data_beijing,
+)
 from spatio_temporal.training.eval_utils import plot_loss_curves, save_losses
 
 
@@ -38,8 +42,9 @@ if __name__ == "__main__":
     # ds = pickle.load((data_dir / "kenya.pkl").open("rb"))
     # ds = ds.isel(lat=slice(0, 10), lon=slice(0, 10))
     # ds = create_linear_ds().isel(lat=slice(0, 5), lon=slice(0, 5))
-    ds = xr.open_dataset(data_dir / "ALL_dynamic_ds.nc")
-    ds = ds.isel(station_id=slice(0, 10))
+    # ds = xr.open_dataset(data_dir / "ALL_dynamic_ds.nc")
+    # ds = ds.isel(station_id=slice(0, 10))
+    ds = get_pollution_data_beijing().to_xarray()
 
     #  Run Training and Evaluation
     if mode == "train":
@@ -47,25 +52,25 @@ if __name__ == "__main__":
         assert config_file.exists(), f"Expect config file at {config_file}"
 
         cfg = Config(cfg_path=config_file)
+        # Train test split
+        expt_class = trainer = Trainer(cfg, ds)
+        tester = Tester(cfg, ds)
+
+        if baseline:
+            print("Testing sklearn Linear Regression")
+            train_dl = trainer.train_dl
+            test_dl = tester.test_dl
+            _test_sklearn_model(train_dl, test_dl, cfg)
 
     #  Run Evaluation only
     else:
         test_dir = Path(args["run_dir"])
         cfg = Config(cfg_path=test_dir / "config.yml")
-        # tester = Tester(cfg, ds)
+        expt_class = tester = Tester(cfg, ds)
 
-    # Train test split
-    trainer = Trainer(cfg, ds)
-    tester = Tester(cfg, ds)
-
-
-    if baseline:
-        print("Testing sklearn Linear Regression")
-        train_dl = trainer.train_dl
-        test_dl = tester.test_dl
-        _test_sklearn_model(train_dl, test_dl, cfg)
-
-    model = trainer.model
+    print()
+    print(expt_class)
+    model = expt_class.model
     print(model)
     print()
 
