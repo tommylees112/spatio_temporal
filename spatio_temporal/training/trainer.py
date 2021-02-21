@@ -116,12 +116,18 @@ class Trainer(BaseTrainer):
         train_ds = ds[self.cfg.input_variables + [self.cfg.target_variable]].sel(
             time=slice(self.cfg.train_start_date, self.cfg.train_end_date)
         )
+        assert 0 not in [
+            v for v in train_ds.dims.values()
+        ], f"Train Period returns NO samples {train_ds}"
         self.train_dl = PixelDataLoader(train_ds, cfg=self.cfg, mode="train")
 
         #  validation period
         valid_ds = ds[self.cfg.input_variables + [self.cfg.target_variable]].sel(
             time=slice(self.cfg.validation_start_date, self.cfg.validation_end_date)
         )
+        assert 0 not in [
+            v for v in valid_ds.dims.values()
+        ], f"Validation Period returns NO samples {valid_ds}"
         self.valid_dl = PixelDataLoader(valid_ds, cfg=self.cfg, mode="validation")
 
     #################################################
@@ -148,7 +154,8 @@ class Trainer(BaseTrainer):
             loss = self.loss_fn(y_hat["y_hat"], y)
 
             if torch.isnan(loss):
-                assert False
+                pass
+                # assert False
 
             # backward pass (get gradients, step optimizer, delete old gradients)
             loss.backward()

@@ -3,6 +3,7 @@ from ruamel.yaml import YAML
 from typing import Dict, Any, Union, List, Optional
 from collections import OrderedDict
 import pandas as pd
+import pprint
 
 
 class Config:
@@ -45,6 +46,9 @@ class Config:
         self.file_path = cfg_path
         self._cfg = self._read_config(self.file_path)
         self._check_all_mandatory()
+
+    def __repr__(self):
+        return pprint.pformat(self._cfg)
 
     def _read_config(self, cfg_path: Path):
         if cfg_path.exists():
