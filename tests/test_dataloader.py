@@ -14,6 +14,7 @@ from tests.utils import (
     create_and_assign_temp_run_path_to_config,
     create_sin_with_different_phases,
     create_linear_ds,
+    get_pollution_data_beijing,
 )
 from spatio_temporal.data.data_utils import (
     load_all_data_from_dl_into_memory,
@@ -88,10 +89,18 @@ class TestDataLoader:
 
         assert np.allclose(x_feature, expected_x_feature)
 
+    def test_dataset_beijing(self, tmp_path):
+        path = Path("tests/testconfigs/pollution.yml")
+        cfg = Config(path)
+        create_and_assign_temp_run_path_to_config(cfg, tmp_path)
+        raw_ds = get_pollution_data_beijing().to_xarray().isel(time=slice(0, 1000))
+        ds = XarrayDataset(raw_ds, cfg=cfg, mode="train", DEBUG=True)
+
+        assert ds.y != {}
+
     def test_dataset(self, tmp_path):
         target_variable = "target"
         input_variables = ["feature"]
-        pixel_dims = ["lat", "lon"]
         for path in [
             Path("tests/testconfigs/test_config_simulate.yml"),
             Path("tests/testconfigs/test_config.yml"),
@@ -391,7 +400,9 @@ class TestDataLoader:
 
     def test_forecast_inputs(self, tmp_path):
         ds = _make_dataset().isel(lat=slice(0, 2), lon=slice(0, 1))
-        ds_forecast = ds.shift(1).drop("target").rename({"feature": "feature_fcast1"})
+        ds_forecast = (
+            ds.shift(time=1).rename({"feature": "feature_fcast1"}).drop("target")
+        )
         ds = xr.merge([ds, ds_forecast])
 
         cfg = Config(Path("tests/testconfigs/test_config.yml"))
