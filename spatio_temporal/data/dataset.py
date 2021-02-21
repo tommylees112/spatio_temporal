@@ -152,14 +152,6 @@ class XarrayDataset(Dataset):
 
             # TODO: Include forecasted variables into dynamic
             # self.forecast_variables
-
-            #  Shift values one timestep to ensure no leakage
-            # TODO: do we need to do this? or do we do in __getitem__
-            # if self.horizon > 0:
-            #     x_d = df_native[self.inputs].shift(self.horizon).values
-            # else:
-            #     x_d = df_native[self.inputs].values
-
             x_d = df_native[self.inputs].values
             y = df_native[self.target].values
 
@@ -183,7 +175,7 @@ class XarrayDataset(Dataset):
             valid_samples = np.argwhere(flag == 1)
             [lookup.append((pixel, smp)) for smp in valid_samples]
 
-            # store data if basin has at least ONE valid sample
+            # STORE DATA if basin has at least ONE valid sample
             if valid_samples.size > 0:
                 self.store_data(pixel, x_d=x_d, y=y, x_s=x_s, times=times)
             else:
@@ -221,11 +213,6 @@ class XarrayDataset(Dataset):
             assert x_d.shape[0] == self.cfg.seq_length
 
         # get target for current : horizon
-        # if self.horizon == 0:
-        #     #  simulate the current timestep
-        #     y_ = self.y[pixel][target_index].reshape(-1, 1)
-        #     time_ = self.times[pixel][target_index]
-        # else:
         #  forecast the next `self.horizon` timesteps
         end_fcast_correction = 1 if self.horizon == 0 else 0
         y_ = self.y[pixel][
