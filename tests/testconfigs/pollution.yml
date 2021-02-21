@@ -1,0 +1,61 @@
+# --- Experiment Configurations ---------------------------------------------------------------------
+# experiment name, used as folder name
+experiment_name: pollution
+
+# place to store run directory (if empty runs are stored in code_dir/runs/)
+run_dir:
+
+# fixed seed, leave empty to use a random seed
+seed: 1234
+
+# training, validation and test time periods (format = 'dd/mm/yyyy')
+train_start_date: "01/01/2010"
+train_end_date: "31/12/2011"
+
+validation_start_date: "01/01/2012"
+validation_end_date: "31/12/2013"
+
+test_start_date: "01/01/2014"
+test_end_date: "31/12/2015"
+
+# --- Validation Configurations ---------------------------------------------------------------------
+# --- Model Configurations --------------------------------------------------------------------------
+hidden_size: 64
+
+
+# --- Training Configurations -----------------------------------------------------------------------
+n_epochs: 1
+
+learning_rate: 1e-2
+
+batch_size: 256
+
+# input timesteps
+seq_length: 24
+
+# horizon to make predictions over ([1, ..., horizon])
+horizon: 2
+
+# specify optimizer [Adam]
+optimizer: Adam
+
+# specify loss [MSE, NSE, RMSE]
+loss: MSE
+
+# number of parallel workers used by the dataloaders
+num_workers: 4
+
+# --- Data Configurations ---------------------------------------------------------------------------
+# Path to data set root
+data_dir: data/
+
+target_variable: pollution
+
+input_variables: 
+  - temp
+  - wnd_spd
+
+autoregressive: False
+
+pixel_dims: 
+  - point

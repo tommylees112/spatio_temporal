@@ -4,10 +4,14 @@ import pandas as pd
 from pathlib import Path
 import pickle
 from typing import List, Tuple, Dict
+from datetime import datetime
 
 from spatio_temporal.config import Config
 from spatio_temporal.data.dataloader import PixelDataLoader
-from spatio_temporal.data.data_utils import load_all_data_from_dl_into_memory, _stack_xarray
+from spatio_temporal.data.data_utils import (
+    load_all_data_from_dl_into_memory,
+    _stack_xarray,
+)
 from spatio_temporal.training.eval_utils import data_in_memory_to_xarray, scatter_plot
 from spatio_temporal.data.normalizer import Normalizer
 
@@ -196,11 +200,51 @@ def _test_sklearn_model(train_dl, test_dl, cfg):
 
 
 def _create_dummy_normalizer(ds: xr.Dataset, cfg: Config):
-    # FIRST STACK
+    #  FIRST STACK
     stacked, _ = _stack_xarray(ds, cfg.pixel_dims)
 
-    # THEN NORMALIZE
+    #  THEN NORMALIZE
     normalizer = Normalizer(fit_ds=stacked)
-    pickle.dump(
-        normalizer, (cfg.run_dir / "normalizer.pkl").open("wb")
+    pickle.dump(normalizer, (cfg.run_dir / "normalizer.pkl").open("wb"))
+
+
+def get_pollution_data_beijing() -> pd.DataFrame:
+    """Following from the tutorial available here: 
+    https://machinelearningmastery.com/multivariate-time-series-forecasting-lstms-keras/
+
+    TODO: integer encode 
+    # integer encode direction
+    encoder = LabelEncoder()
+    values[:,4] = encoder.fit_transform(values[:,4])
+
+    """
+
+    def parse(x):
+        return datetime.strptime(x, "%Y %m %d %H")
+
+    df = pd.read_csv(
+        "https://raw.githubusercontent.com/jbrownlee/Datasets/master/pollution.csv",
+        parse_dates=[["year", "month", "day", "hour"]],
+        index_col=0,
+        date_parser=parse,
     )
+    df.drop("No", axis=1, inplace=True)
+    # manually specify column names
+    df.columns = [
+        "pollution",
+        "dew",
+        "temp",
+        "press",
+        "wnd_dir",
+        "wnd_spd",
+        "snow",
+        "rain",
+    ]
+    df.index.name = "time"
+
+    #  add in sample col
+    df = df.reset_index()
+    df["point"] = "1"
+    df = df.set_index(["time", "point"])
+
+    return df
