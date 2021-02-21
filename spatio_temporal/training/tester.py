@@ -29,10 +29,13 @@ class Tester:
 
         # load model and model weights:: self.model
         self.load_model()
+    
+    def __repr__(self):
+        return self.cfg._cfg.__repr__()
 
     def initialise_data(self, ds: xr.Dataset) -> None:
         test_ds = train_test_split(ds, cfg=self.cfg, subset="test")
-        #  NOTE: normalizer shoudl be read from the cfg.run_dir directory
+        #  NOTE: normalizer should be read from the cfg.run_dir directory
         self.test_dl = PixelDataLoader(
             test_ds, cfg=self.cfg, mode="test", normalizer=None
         )
@@ -129,12 +132,16 @@ class Tester:
         _preds = pd.DataFrame(return_dict)
         horizons = self._get_horizons()
         horizon_preds = []
+
         for th in horizons:
-            th_preds = _preds.loc[
-                :, [c for c in _preds.columns if f"_{th}" in c] + ["pixel"]
-            ]
-            th_preds.columns = [c.split("_")[0] for c in th_preds.columns]
-            horizon_preds.append(th_preds)
+            if len(horizons) < 1:
+                th_preds = _preds.loc[
+                    :, [c for c in _preds.columns if f"_{th}" in c] + ["pixel"]
+                ]
+                th_preds.columns = [c.split("_")[0] for c in th_preds.columns]
+                horizon_preds.append(th_preds)
+            else:
+                horizon_preds.append(_preds)
 
         for horizon, h_preds in zip(horizons, horizon_preds):
             h_preds = h_preds.set_index(["pixel", "time"])
@@ -146,5 +153,3 @@ class Tester:
                 / f"test_predictions_E{str(epoch).zfill(3)}_FH{horizon}.nc"
             )
 
-    def __repr__(self):
-        return self.cfg._cfg.__repr__()
