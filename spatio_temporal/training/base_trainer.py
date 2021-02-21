@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 import random
-from pprint import pprint
+import pprint
 import numpy as np
 from pathlib import Path
 import torch
@@ -80,7 +80,7 @@ class BaseTrainer:
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     def __repr__(self):
-        pprint(self.cfg._cfg)
+        return pprint.pformat(self.cfg._cfg)
 
     @staticmethod
     def _set_seeds(cfg: Config):
