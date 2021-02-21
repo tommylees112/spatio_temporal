@@ -1,6 +1,6 @@
 import torch
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple, List
 import numpy as np
 import xarray as xr
 from tqdm import tqdm
@@ -34,6 +34,9 @@ class Tester:
         test_ds = ds[self.cfg.input_variables + [self.cfg.target_variable]].sel(
             time=slice(self.cfg.test_start_date, self.cfg.test_end_date)
         )
+        assert 0 not in [
+            v for v in test_ds.dims.values()
+        ], f"Validation Period returns NO samples {test_ds}"
         #  NOTE: normalizer shoudl be read from the cfg.run_dir directory
         self.test_dl = PixelDataLoader(
             test_ds, cfg=self.cfg, mode="test", normalizer=None
@@ -57,6 +60,42 @@ class Tester:
             weight_file = cfg.run_dir / f"model_epoch{str(epoch).zfill(3)}.pt"
 
         return weight_file
+
+    @staticmethod
+    def _unpack_obs_sim_time(
+        return_dict: Dict[str, np.ndarray]
+    ) -> Dict[str, np.ndarray]:
+        # deal with multiple target variables (fh > 1)
+        target_horizons = return_dict["obs"].shape[-1]
+        if target_horizons > 1:
+            obs = [return_dict["obs"][:, i] for i in range(target_horizons)]
+            sim = [return_dict["sim"][:, i] for i in range(target_horizons)]
+            times = [return_dict["time"][:, i] for i in range(target_horizons)]
+            return_dict.pop("obs")
+            return_dict.pop("sim")
+            return_dict.pop("time")
+
+            #  update ONE per target horizon
+            [
+                return_dict.update({f"obs_{i + 1}": obs[i]})
+                for i in range(target_horizons)
+            ]
+            [
+                return_dict.update({f"sim_{i + 1}": sim[i]})
+                for i in range(target_horizons)
+            ]
+            [
+                # return_dict.update({f"time{'_' + str(i + 1) if i > 0 else ''}": times[i]})
+                return_dict.update({f"time_{i + 1}": times[i]})
+                for i in range(target_horizons)
+            ]
+        return return_dict
+
+    def _get_horizons(self) -> List[int]:
+        if self.cfg.horizon <= 1:
+            return [self.cfg.horizon]
+        else:
+            return [i for i in range(1, self.cfg.horizon + 1)]
 
     def run_test(self):
         weight_file = self._get_weight_file(self.cfg)
@@ -87,11 +126,30 @@ class Tester:
             var_ = _reshape(var_)
             return_dict[key] = var_.flatten() if var_.shape[-1] == 1 else var_
 
-        #  TODO: deal with multiple target variables (fh > 1)
-        _preds = pd.DataFrame(return_dict).set_index(["pixel", "time"])
-        preds = _preds.to_xarray()
-        scatter_plot(preds, self.cfg, model="nn")
+        #  SEPARATE OUT into [1, ..., fh]
+        #  TODO: CLEAN OUT THIS API (too many times we're replicating code/undoing previous transforms)
+        # TODO: flatten into long array with forecast horizon as anotehr array
+        # keys = ["obs", "sim", "time", "fh"]
+        return_dict = self._unpack_obs_sim_time(return_dict)
+        _preds = pd.DataFrame(return_dict)
+        horizons = self._get_horizons()
+        horizon_preds = []
+        for th in horizons:
+            th_preds = _preds.loc[
+                :, [c for c in _preds.columns if f"_{th}" in c] + ["pixel"]
+            ]
+            th_preds.columns = [c.split("_")[0] for c in th_preds.columns]
+            horizon_preds.append(th_preds)
 
-        preds.to_netcdf(
-            self.cfg.run_dir / f"test_predictions_E{str(epoch).zfill(3)}.nc"
-        )
+        for horizon, h_preds in zip(horizons, horizon_preds):
+            h_preds = h_preds.set_index(["pixel", "time"])
+            preds = h_preds.to_xarray()
+            scatter_plot(preds, self.cfg, model="lstm", horizon=horizon)
+
+            preds.to_netcdf(
+                self.cfg.run_dir
+                / f"test_predictions_E{str(epoch).zfill(3)}_FH{horizon}.nc"
+            )
+
+    def __repr__(self):
+        return self.cfg._cfg.__repr__()

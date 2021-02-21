@@ -41,6 +41,8 @@ def get_lists_of_metadata(
         .squeeze()
     )
     times = times.reshape(-1) if times.ndim == 0 else times
+    #  create a row vector if there is more than one forecast horizon
+    times = times.reshape(1, -1) if len(times) > 1 else times
 
     pixels = np.array(
         [dataloader.dataset.lookup_table[int(index)][0] for index in indexes]
@@ -156,16 +158,18 @@ def data_in_memory_to_xarray(
     return ds
 
 
-def scatter_plot(preds: xr.Dataset, cfg: Config, model: str = "nn") -> None:
+def scatter_plot(
+    preds: xr.Dataset, cfg: Config, model: str = "nn", horizon: int = 0
+) -> None:
     f, ax = plt.subplots()
     ax.scatter(
         preds.obs.values.flatten(), preds.sim.values.flatten(), marker="x", alpha=0.1
     )
     ax.set_xlabel("Observations")
     ax.set_ylabel("Simulations")
-    ax.set_title(f"{model} Observed vs. Predicted")
+    ax.set_title(f"{model} Observed vs. Predicted [FH {horizon}]")
 
-    f.savefig(cfg.run_dir / f"scatter_{model}.png")
+    f.savefig(cfg.run_dir / f"scatter_{model}_FH{horizon}.png")
 
 
 def plot_loss_curves(losses: Tuple[np.ndarray, np.ndarray], cfg: Config) -> None:
