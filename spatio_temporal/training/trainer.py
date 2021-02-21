@@ -13,6 +13,7 @@ from spatio_temporal.data.dataloader import PixelDataLoader
 from spatio_temporal.config import Config
 from spatio_temporal.model.lstm import LSTM
 from spatio_temporal.model.linear_regression import LinearRegression
+from spatio_temporal.data.data_utils import train_test_split
 
 
 @dataclass
@@ -113,21 +114,11 @@ class Trainer(BaseTrainer):
         #  TODO: only initialise the necessary dataloaders
         # Train-Validation split
         # train period
-        train_ds = ds[self.cfg.input_variables + [self.cfg.target_variable]].sel(
-            time=slice(self.cfg.train_start_date, self.cfg.train_end_date)
-        )
-        assert 0 not in [
-            v for v in train_ds.dims.values()
-        ], f"Train Period returns NO samples {train_ds}"
+        train_ds = train_test_split(ds, cfg=self.cfg, subset="train")
         self.train_dl = PixelDataLoader(train_ds, cfg=self.cfg, mode="train")
 
         #  validation period
-        valid_ds = ds[self.cfg.input_variables + [self.cfg.target_variable]].sel(
-            time=slice(self.cfg.validation_start_date, self.cfg.validation_end_date)
-        )
-        assert 0 not in [
-            v for v in valid_ds.dims.values()
-        ], f"Validation Period returns NO samples {valid_ds}"
+        valid_ds = train_test_split(ds, cfg=self.cfg, subset="validation")
         self.valid_dl = PixelDataLoader(valid_ds, cfg=self.cfg, mode="validation")
 
     #################################################

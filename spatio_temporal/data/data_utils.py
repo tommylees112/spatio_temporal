@@ -5,6 +5,7 @@ from numba import njit, prange
 from typing import List, Tuple, Optional, Union, Any, Dict, DefaultDict
 from torch import Tensor
 from collections import defaultdict
+from spatio_temporal.config import Config
 
 
 def _alternative_inf_freq(df, method="mode") -> pd.Timedelta:
@@ -143,3 +144,26 @@ def load_all_data_from_dl_into_memory(dl: Any) -> Tuple[np.ndarray, ...]:
         return_dict[key] = var_
 
     return return_dict
+
+
+def train_test_split(ds: xr.Dataset, cfg: Config, subset: str) -> xr.Dataset:
+    if subset == "train":
+        ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
+            time=slice(cfg.train_start_date, cfg.train_end_date)
+        )
+    elif subset == "validation":
+        ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
+            time=slice(cfg.validation_start_date, cfg.validation_end_date)
+        )
+    elif subset == "test":
+        ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
+            time=slice(cfg.test_start_date, cfg.test_end_date)
+        )
+    else:
+        assert False, f"No such subset ({subset}) can be supplied"
+
+    assert 0 not in [
+        v for v in ds.dims.values()
+    ], f"{subset} Period returns NO samples {ds}"
+
+    return ds

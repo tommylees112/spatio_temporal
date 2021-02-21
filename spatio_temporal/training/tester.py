@@ -13,7 +13,7 @@ from spatio_temporal.training.eval_utils import (
     get_lists_of_metadata,
     scatter_plot,
 )
-from spatio_temporal.data.data_utils import _reshape
+from spatio_temporal.data.data_utils import _reshape, train_test_split
 
 
 class Tester:
@@ -30,13 +30,8 @@ class Tester:
         # load model and model weights:: self.model
         self.load_model()
 
-    def initialise_data(self, ds: xr.Dataset, mode: str = "train") -> None:
-        test_ds = ds[self.cfg.input_variables + [self.cfg.target_variable]].sel(
-            time=slice(self.cfg.test_start_date, self.cfg.test_end_date)
-        )
-        assert 0 not in [
-            v for v in test_ds.dims.values()
-        ], f"Validation Period returns NO samples {test_ds}"
+    def initialise_data(self, ds: xr.Dataset) -> None:
+        test_ds = train_test_split(ds, cfg=self.cfg, subset="test")
         #  NOTE: normalizer shoudl be read from the cfg.run_dir directory
         self.test_dl = PixelDataLoader(
             test_ds, cfg=self.cfg, mode="test", normalizer=None
@@ -67,7 +62,7 @@ class Tester:
     ) -> Dict[str, np.ndarray]:
         # deal with multiple target variables (fh > 1)
         target_horizons = return_dict["obs"].shape[-1]
-        if target_horizons > 1:
+        if (target_horizons > 1) & (return_dict["obs"].ndim > 1):
             obs = [return_dict["obs"][:, i] for i in range(target_horizons)]
             sim = [return_dict["sim"][:, i] for i in range(target_horizons)]
             times = [return_dict["time"][:, i] for i in range(target_horizons)]
