@@ -172,6 +172,7 @@ def _test_sklearn_model(train_dl, test_dl, cfg):
     import matplotlib.pyplot as plt
 
     #  load all of the TRAIN data into memory
+    #  search:: load all into memory
     data = load_all_data_from_dl_into_memory(train_dl)
     x_d, y = data["x_d"], data["y"]
     x_d = x_d.reshape(len(y), -1) if x_d.ndim > 2 else x_d
