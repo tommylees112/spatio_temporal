@@ -107,7 +107,7 @@ def validate_samples(
         if y is not None:
             _y = y[target_index : (target_index + forecast_horizon)]
 
-            if np.any(np.isnan(y)):
+            if np.any(np.isnan(_y)):
                 flag[target_index] = 0
                 continue
 
