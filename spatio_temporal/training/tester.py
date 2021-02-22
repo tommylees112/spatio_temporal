@@ -14,6 +14,7 @@ from spatio_temporal.training.eval_utils import (
     scatter_plot,
 )
 from spatio_temporal.data.data_utils import _reshape, train_test_split
+from spatio_temporal.training.train_utils import _to_device
 
 
 class Tester:
@@ -29,7 +30,7 @@ class Tester:
 
         # load model and model weights:: self.model
         self.load_model()
-    
+
     def __repr__(self):
         return self.cfg._cfg.__repr__()
 
@@ -37,7 +38,11 @@ class Tester:
         test_ds = train_test_split(ds, cfg=self.cfg, subset="test")
         #  NOTE: normalizer should be read from the cfg.run_dir directory
         self.test_dl = PixelDataLoader(
-            test_ds, cfg=self.cfg, mode="test", normalizer=None, num_workers=self.cfg.num_workers
+            test_ds,
+            cfg=self.cfg,
+            mode="test",
+            normalizer=None,
+            num_workers=self.cfg.num_workers,
         )
 
     def load_model(self):
@@ -107,6 +112,9 @@ class Tester:
         with torch.no_grad():
             test_pbar = tqdm(self.test_dl, desc="Test set Forward Pass: ")
             for data in test_pbar:
+                #  to GPU
+                data = _to_device(data, self.device)
+
                 x, y = data["x_d"], data["y"]
                 y_hat = self.model(x)
 
@@ -152,4 +160,3 @@ class Tester:
                 self.cfg.run_dir
                 / f"test_predictions_E{str(epoch).zfill(3)}_FH{horizon}.nc"
             )
-

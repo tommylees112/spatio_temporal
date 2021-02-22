@@ -137,7 +137,8 @@ class XarrayDataset(Dataset):
         if times is not None:
             #  NOTE: this is super inefficient becuase duplicated over each pixel
             #  store as float32 to keep pytorch happy
-            self.times[pixel] = np.array(times).astype(np.float32)
+            time_ = np.array(times) if not isinstance(times, np.ndarray) else times
+            self.times[pixel] = torch.from_numpy(np.array(time_).astype(np.float32))
 
     def create_lookup_table(self, ds):
         pixels_without_samples = []
@@ -194,24 +195,16 @@ class XarrayDataset(Dataset):
         pixel, target_index = self.lookup_table[idx]
         target_index = int(target_index)
         data = {}
-        
+
         #  INPUT DATA
-        #  Get input/output data
-        #  get the inputs for [target - seq_length : target - horizon]
-        x_d = (
-                self.x_d[pixel][
-                    ((target_index - self.seq_length - self.horizon) + 1) : (
-                        target_index - self.horizon
-                    )
-                    + 1
-                ]
-            )
-            .to(self.device)
-        )
+        #  get the inputs for [start_input_idx : end_input_idx]
+        start_input_idx = (target_index - self.seq_length - self.horizon) + 1
+        end_input_idx = (target_index - self.horizon) + 1
+        x_d = self.x_d[pixel][start_input_idx:end_input_idx]
         if self.DEBUG:
             assert x_d.shape[0] == self.cfg.seq_length
 
-        # TARGET DATA
+        #  TARGET DATA
         # get target for current : horizon
         #  forecast the next `self.horizon` timesteps
         end_fcast_correction = 1 if self.horizon == 0 else 0
@@ -220,36 +213,35 @@ class XarrayDataset(Dataset):
         ]
         y_ = y_.reshape(-1, 1) if y_.ndim == 1 else y_
 
-        y = y_.to(self.device)
+        y = y_
 
         if torch.isnan(y):
-            # validate_samples should be capturing these errors ...
-            raise RuntimeError(f"There should be no nans in the target data (y): pixel {pixel} target_index {target_index}")
+            #  validate_samples should be capturing these errors ...
+            raise RuntimeError(
+                f"There should be no nans in the target data (y): pixel {pixel} target_index {target_index}"
+            )
 
         if self.static_inputs is not None:
-            x_s = torch.cat(self.x_s[pixel], dim=-1).float().to(self.device)
+            x_s = torch.cat(self.x_s[pixel], dim=-1)
         else:
-            x_s = torch.from_numpy(np.array([])).float().to(self.device)
+            x_s = torch.from_numpy(np.array([]))
 
         # METADATA
         # store time as float32
         # convert back to timestamp https://stackoverflow.com/a/47562725/9940782
-        time_ = self.times[pixel][target_index : (target_index + self.horizon)]
-        time_ = np.array(time_) if not isinstance(time_, np.ndarray) else time_
-        time = torch.from_numpy(time_).float().to(self.device)
-        target_index = (
-            torch.from_numpy(np.array([idx]).reshape(-1)).float().to(self.device)
-        )
+        time = self.times[pixel][target_index : (target_index + self.horizon)]
+        target_index = torch.from_numpy(np.array([idx]).reshape(-1))
 
         # # write output dictionary
-        meta = {
-            "index": target_index,
-            "target_time": time,
-        }
+        if self.mode != "train":
+            meta = {
+                "index": target_index,
+                "target_time": time,
+            }
+            data["meta"] = meta
 
         data["x_d"] = x_d
         data["y"] = y
-        data["meta"] = meta
         data["x_s"] = x_s
 
         return data

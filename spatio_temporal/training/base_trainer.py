@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union, List
 import random
 import pprint
 import numpy as np
@@ -87,3 +87,23 @@ class BaseTrainer:
         seed = cfg.seed
         torch.manual_seed(seed)
         np.random.seed(seed)
+
+    #################################################
+    ##############TRAINING GOODIES###################
+    #################################################
+
+    def _adjust_learning_rate(self, new_lr: float):
+        # TODO: adjust the learning rate as go through
+        # TODO: check pytorch implementations
+        for param_group in self.optimizer.param_groups:
+            old_lr = param_group["lr"]
+            param_group["lr"] = new_lr
+
+    def _save_epoch_information(self, epoch: int) -> None:
+        # SAVE model weights
+        weight_path = self.cfg.run_dir / f"model_epoch{epoch:03d}.pt"
+        torch.save(self.model.state_dict(), str(weight_path))
+
+        # SAVE optimizer state dict
+        optimizer_path = self.cfg.run_dir / f"optimizer_state_epoch{epoch:03d}.pt"
+        torch.save(self.optimizer.state_dict(), str(optimizer_path))
