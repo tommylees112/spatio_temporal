@@ -106,7 +106,8 @@ def validate_samples(
         #  NOTE: indexing here needs to be the same as in dataloader.__getitem__
         #  3. NaN in the outputs (only for training period)
         if y is not None:
-            _y = y[target_index : (target_index + forecast_horizon)]
+            end_fcast_correction = 1 if forecast_horizon == 0 else 0
+            _y = y[target_index : (target_index + forecast_horizon + end_fcast_correction)]
 
             if np.any(np.isnan(_y)):
                 flag[target_index] = 0
