@@ -223,6 +223,10 @@ class XarrayDataset(Dataset):
 
         y = torch.from_numpy(y_).float().to(self.device)
 
+        if torch.isnan(y):
+            # validate_samples should be capturing these errors ...
+            raise RuntimeError(f"There should be no nans in the target data (y): pixel {pixel} target_index {target_index}")
+
         if self.static_inputs is not None:
             x_s = torch.cat(self.x_s[pixel], dim=-1).float().to(self.device)
         else:
@@ -230,21 +234,21 @@ class XarrayDataset(Dataset):
 
         # metadata, store time as integer64
         # convert back to timestamp https://stackoverflow.com/a/47562725/9940782
-        time_ = np.array(time_) if not isinstance(time_, np.ndarray) else time_
-        time = torch.from_numpy(time_).float().to(self.device)
-        target_index = (
-            torch.from_numpy(np.array([idx]).reshape(-1)).float().to(self.device)
-        )
+        # time_ = np.array(time_) if not isinstance(time_, np.ndarray) else time_
+        # time = torch.from_numpy(time_).float().to(self.device)
+        # target_index = (
+        #     torch.from_numpy(np.array([idx]).reshape(-1)).float().to(self.device)
+        # )
 
-        # write output dictionary
-        meta = {
-            "index": target_index,
-            "target_time": time,
-        }
+        # # write output dictionary
+        # meta = {
+        #     "index": target_index,
+        #     "target_time": time,
+        # }
 
         data["x_d"] = x_d
         data["y"] = y
-        data["meta"] = meta
+        # data["meta"] = meta
         data["x_s"] = x_s
 
         return data

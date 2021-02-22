@@ -153,13 +153,14 @@ class Trainer(BaseTrainer):
 
             # backward pass (get gradients, step optimizer, delete old gradients)
             loss.backward()
-            self.optimizer.step()
 
-            #  get gradients
+            #  TODO: clip gradients after backward pass; before optimizer step 
             if self.cfg.clip_gradient_norm is not None:
                 torch.nn.utils.clip_grad_norm_(
                     self.model.parameters(), self.cfg.clip_gradient_norm
                 )
+
+            self.optimizer.step()
 
             # memorize the training loss
             pbar.set_postfix_str(f"{loss.item():.2f}")
@@ -213,6 +214,7 @@ class Trainer(BaseTrainer):
 
     def _adjust_learning_rate(self, new_lr: float):
         # TODO: adjust the learning rate as go through
+        # TODO: check pytorch implementations
         for param_group in self.optimizer.param_groups:
             old_lr = param_group["lr"]
             param_group["lr"] = new_lr
