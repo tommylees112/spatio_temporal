@@ -119,13 +119,13 @@ class Trainer(BaseTrainer):
         # train period
         train_ds = train_test_split(ds, cfg=self.cfg, subset="train")
         self.train_dl = PixelDataLoader(
-            train_ds, cfg=self.cfg, mode="train", num_workers=self.cfg.num_workers
+            train_ds, cfg=self.cfg, mode="train", num_workers=self.cfg.num_workers, pin_memory=True,
         )
 
         #  validation period
         valid_ds = train_test_split(ds, cfg=self.cfg, subset="validation")
         self.valid_dl = PixelDataLoader(
-            valid_ds, cfg=self.cfg, mode="validation", num_workers=self.cfg.num_workers
+            valid_ds, cfg=self.cfg, mode="validation", num_workers=self.cfg.num_workers, pin_memory=True,
         )
 
     #################################################
