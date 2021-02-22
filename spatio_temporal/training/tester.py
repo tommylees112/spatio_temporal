@@ -37,7 +37,7 @@ class Tester:
         test_ds = train_test_split(ds, cfg=self.cfg, subset="test")
         #  NOTE: normalizer should be read from the cfg.run_dir directory
         self.test_dl = PixelDataLoader(
-            test_ds, cfg=self.cfg, mode="test", normalizer=None
+            test_ds, cfg=self.cfg, mode="test", normalizer=None, num_workers=self.cfg.num_workers
         )
 
     def load_model(self):
