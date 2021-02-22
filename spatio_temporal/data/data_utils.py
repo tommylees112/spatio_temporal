@@ -93,12 +93,9 @@ def validate_samples(
 
         #  NOTE: indexing here needs to be the same as in dataloader.__getitem__
         #  2. NaN in the dynamic inputs
-        _x_d = x_d[
-            ((target_index - seq_length - forecast_horizon) + 1) : (
-                target_index - forecast_horizon
-            )
-            + 1
-        ]
+        start_input_idx = (target_index - seq_length - forecast_horizon) + 1
+        end_input_idx = (target_index - forecast_horizon) + 1
+        _x_d = x_d[start_input_idx: end_input_idx]
         if np.any(np.isnan(_x_d)):
             flag[target_index] = 0
             continue
