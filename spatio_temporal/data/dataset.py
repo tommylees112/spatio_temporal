@@ -128,16 +128,16 @@ class XarrayDataset(Dataset):
         times: Optional[np.ndarray] = None,
         x_s: Optional[np.ndarray] = None,
     ):
-        self.x_d[pixel] = x_d
-        self.y[pixel] = y
+        self.x_d[pixel] = torch.from_numpy(x_d.astype(np.float32))
+        self.y[pixel] = torch.from_numpy(y.astype(np.float32))
         if self.static_inputs is not None:
-            self.x_s[pixel] = x_s
+            self.x_s[pixel] = torch.from_numpy(x_s.astype(np.float32))
 
         # store metadata
         if times is not None:
             #  NOTE: this is super inefficient becuase duplicated over each pixel
-            #  store as integers to keep pytorch happy
-            self.times[pixel] = np.array(times).astype(np.int64)
+            #  store as float32 to keep pytorch happy
+            self.times[pixel] = np.array(times).astype(np.float32)
 
     def create_lookup_table(self, ds):
         pixels_without_samples = []
@@ -199,7 +199,6 @@ class XarrayDataset(Dataset):
         #  Get input/output data
         #  get the inputs for [target - seq_length : target - horizon]
         x_d = (
-            torch.from_numpy(
                 self.x_d[pixel][
                     ((target_index - self.seq_length - self.horizon) + 1) : (
                         target_index - self.horizon
@@ -207,7 +206,6 @@ class XarrayDataset(Dataset):
                     + 1
                 ]
             )
-            .float()
             .to(self.device)
         )
         if self.DEBUG:
@@ -221,9 +219,8 @@ class XarrayDataset(Dataset):
             target_index : (target_index + self.horizon + end_fcast_correction)
         ]
         y_ = y_.reshape(-1, 1) if y_.ndim == 1 else y_
-        time_ = self.times[pixel][target_index : (target_index + self.horizon)]
 
-        y = torch.from_numpy(y_).float().to(self.device)
+        y = y_.to(self.device)
 
         if torch.isnan(y):
             # validate_samples should be capturing these errors ...
@@ -235,8 +232,9 @@ class XarrayDataset(Dataset):
             x_s = torch.from_numpy(np.array([])).float().to(self.device)
 
         # METADATA
-        # store time as integer64
+        # store time as float32
         # convert back to timestamp https://stackoverflow.com/a/47562725/9940782
+        time_ = self.times[pixel][target_index : (target_index + self.horizon)]
         time_ = np.array(time_) if not isinstance(time_, np.ndarray) else time_
         time = torch.from_numpy(time_).float().to(self.device)
         target_index = (
