@@ -31,12 +31,13 @@ class Memory:
 
 
 class Trainer(BaseTrainer):
-    def __init__(self, cfg: Config, ds: xr.Dataset):
+    def __init__(self, cfg: Config, ds: xr.Dataset, _allow_subsequent_nan_losses: int = 5):
         super().__init__(cfg=cfg)
 
         # set / use the run directory
         self._create_folder_structure()
         self.device = self.cfg.device
+        self._allow_subsequent_nan_losses = _allow_subsequent_nan_losses
 
         #  set random seeds
         self._set_seeds(self.cfg)
@@ -127,6 +128,7 @@ class Trainer(BaseTrainer):
     def _train_one_epoch(self, epoch: int) -> np.ndarray:
         self.model.train()
         train_loss = []
+        nan_count = 0
 
         #  batch the training data and iterate over batches
         pbar = tqdm(self.train_dl, desc=f"Training Epoch {epoch}: ")
@@ -145,8 +147,9 @@ class Trainer(BaseTrainer):
             loss = self.loss_fn(y_hat["y_hat"], y)
 
             if torch.isnan(loss):
-                pass
-                # assert False
+                nan_count += 1
+                if nan_count > self._allow_subsequent_nan_losses:
+                    raise RuntimeError(f"Loss was NaN for {nan_count} times in a row. Stopped training.")
 
             # backward pass (get gradients, step optimizer, delete old gradients)
             loss.backward()
