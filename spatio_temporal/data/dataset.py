@@ -194,7 +194,8 @@ class XarrayDataset(Dataset):
         pixel, target_index = self.lookup_table[idx]
         target_index = int(target_index)
         data = {}
-
+        
+        #  INPUT DATA
         #  Get input/output data
         #  get the inputs for [target - seq_length : target - horizon]
         x_d = (
@@ -212,6 +213,7 @@ class XarrayDataset(Dataset):
         if self.DEBUG:
             assert x_d.shape[0] == self.cfg.seq_length
 
+        # TARGET DATA
         # get target for current : horizon
         #  forecast the next `self.horizon` timesteps
         end_fcast_correction = 1 if self.horizon == 0 else 0
@@ -232,23 +234,24 @@ class XarrayDataset(Dataset):
         else:
             x_s = torch.from_numpy(np.array([])).float().to(self.device)
 
-        # metadata, store time as integer64
+        # METADATA
+        # store time as integer64
         # convert back to timestamp https://stackoverflow.com/a/47562725/9940782
-        # time_ = np.array(time_) if not isinstance(time_, np.ndarray) else time_
-        # time = torch.from_numpy(time_).float().to(self.device)
-        # target_index = (
-        #     torch.from_numpy(np.array([idx]).reshape(-1)).float().to(self.device)
-        # )
+        time_ = np.array(time_) if not isinstance(time_, np.ndarray) else time_
+        time = torch.from_numpy(time_).float().to(self.device)
+        target_index = (
+            torch.from_numpy(np.array([idx]).reshape(-1)).float().to(self.device)
+        )
 
         # # write output dictionary
-        # meta = {
-        #     "index": target_index,
-        #     "target_time": time,
-        # }
+        meta = {
+            "index": target_index,
+            "target_time": time,
+        }
 
         data["x_d"] = x_d
         data["y"] = y
-        # data["meta"] = meta
+        data["meta"] = meta
         data["x_s"] = x_s
 
         return data
