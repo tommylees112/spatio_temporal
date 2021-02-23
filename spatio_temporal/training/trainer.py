@@ -97,7 +97,9 @@ class Trainer(BaseTrainer):
     def _get_scheduler(self) -> None:
         # https://discuss.pytorch.org/t/how-to-implement-torch-optim-lr-scheduler-cosineannealinglr/28797/6
         if self.cfg.scheduler is not None:
-            self.scheduler =  optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.5)
+            self.scheduler = optim.lr_scheduler.StepLR(
+                self.optimizer, step_size=10, gamma=0.5
+            )
             # self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, self.cfg.n_epochs)
 
     def initialise_model(self) -> None:
@@ -189,7 +191,7 @@ class Trainer(BaseTrainer):
                 torch.nn.utils.clip_grad_norm_(
                     self.model.parameters(), self.cfg.clip_gradient_norm
                 )
-            
+
             self.optimizer.step()
             if self.scheduler is not None:
                 self.scheduler.step()

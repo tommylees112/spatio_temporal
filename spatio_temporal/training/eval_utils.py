@@ -51,7 +51,7 @@ def create_metadata_arrays(
     )
     #  create (batch_size, n_target_times)
     horizon = dataloader.dataset.cfg.horizon
-    n_target_times = 1 if horizon < 2 else horizon
+    n_target_times = 1
     times = times.reshape(-1, n_target_times) if len(times) > 1 else times
 
     # copy pixel arrays for each n_target_times
@@ -61,10 +61,8 @@ def create_metadata_arrays(
     pixels = np.tile(pixels.reshape(-1, 1), n_target_times)
 
     #  get forecast horizons as another array
-    forecast_horizons = np.arange(1, horizon + 1) if horizon > 1 else horizon
-    forecast_horizons = np.tile(forecast_horizons, pixels.shape[0]).reshape(
-        pixels.shape
-    )
+    forecast_horizon = horizon
+    forecast_horizons = np.tile(forecast_horizon, pixels.shape[0]).reshape(pixels.shape)
 
     #  TODO: fix this hack (maybe remove times from being stored in data)
     if times.size == 0:
