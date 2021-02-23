@@ -36,8 +36,8 @@ if __name__ == "__main__":
     scheduler = trainer.scheduler
 
     losses = []
-    data = _to_device(data, cfg.device)
     data = dl.__iter__().__next__()
+    data = _to_device(data, cfg.device)
     x = data["x_d"]
     y = data["y"]
 
