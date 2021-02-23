@@ -208,10 +208,10 @@ class XarrayDataset(Dataset):
         #  TARGET DATA
         # get target for current : horizon
         #  forecast the next `self.horizon` timesteps
-        end_fcast_correction = 1 if self.horizon == 0 else 0
-        y_ = self.y[pixel][
-            target_index : (target_index + self.horizon + end_fcast_correction)
-        ]
+        # end_fcast_correction = 1 if self.horizon == 0 else 0
+        # only forecast one value (not a sequence)
+        # y_ = self.y[pixel][target_index : (target_index + self.horizon + end_fcast_correction)]
+        y_ = self.y[pixel][target_index + self.horizon]
         y_ = y_.reshape(-1, 1) if y_.ndim == 1 else y_
 
         y = y_
@@ -228,12 +228,12 @@ class XarrayDataset(Dataset):
         target_index = torch.from_numpy(np.array([idx]).reshape(-1))
 
         # # write output dictionary
-        if (self.mode != "train") or (self.DEBUG):
-            meta = {
-                "index": target_index,
-                "target_time": time,
-            }
-            data["meta"] = meta
+        # if (self.mode != "train") or (self.DEBUG):
+        meta = {
+            "index": target_index,
+            "target_time": time,
+        }
+        data["meta"] = meta
 
         data["x_d"] = x_d
         data["y"] = y
