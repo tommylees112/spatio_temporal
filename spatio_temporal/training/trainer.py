@@ -137,6 +137,9 @@ class Trainer(BaseTrainer):
             pin_memory=True,
             batch_size=self.cfg.batch_size,
         )
+        assert (
+            self.train_dl.dataset.y != {}
+        ), f"Train Period loads in no data for period {self.cfg.train_start_date} -- {self.cfg.train_end_date} with seq_length {self.cfg.seq_length}"
 
         #  validation period
         valid_ds = train_test_split(ds, cfg=self.cfg, subset="validation")

@@ -185,6 +185,10 @@ def scatter_plot(
     )
     ax.set_xlabel("Observations")
     ax.set_ylabel("Simulations")
+    # set range of values to the same for both axis (obs and sim)
+    axis = np.concatenate([np.array(ax.get_xlim()), np.array(ax.get_ylim())])
+    ax.set_xlim(axis.min(), axis.max())
+    ax.set_ylim(axis.min(), axis.max())
     ax.set_title(f"{model} Observed vs. Predicted [FH {horizon}]")
 
     f.savefig(cfg.run_dir / f"scatter_{model}_FH{horizon}.png")

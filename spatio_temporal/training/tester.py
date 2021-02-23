@@ -46,6 +46,10 @@ class Tester:
             batch_size=self.cfg.batch_size,
         )
 
+        assert (
+            self.test_dl.dataset.y != {}
+        ), f"Test Period loads in no data for period {self.cfg.test_start_date} -- {self.cfg.test_end_date} with seq_length {self.cfg.seq_length}"
+
     def load_model(self):
         #  TODO: def get_model from lookup: Dict[str, Model]
         self.model = LSTM(
