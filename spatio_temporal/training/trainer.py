@@ -239,7 +239,7 @@ class Trainer(BaseTrainer):
 
         for epoch in range(1, self.cfg.n_epochs + 1):
             epoch_train_loss = self._train_one_epoch(epoch)
-            self._reset_scheduler()
+            # self._reset_scheduler()
 
             # Save epoch weights
             self._save_epoch_information(epoch)
