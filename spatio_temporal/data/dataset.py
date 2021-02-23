@@ -74,7 +74,7 @@ class XarrayDataset(Dataset):
 
         # information for building models
         self.horizon = cfg.horizon
-        self.output_size = self.horizon if self.horizon > 0 else 1
+        self.output_size = 1
 
         # add autoregressive variable
         if cfg.autoregressive:
@@ -193,28 +193,23 @@ class XarrayDataset(Dataset):
         return self.num_samples
 
     def __getitem__(self, idx: int) -> Dict[str, Tensor]:
-        pixel, target_index = self.lookup_table[idx]
-        target_index = int(target_index)
+        #  get the valid sample information for pixel, current time idx
+        pixel, valid_current_time_index = self.lookup_table[idx]
+        valid_current_time_index = int(valid_current_time_index)
         data = {}
 
-        #  INPUT DATA
+        target_index = valid_current_time_index + self.horizon
+
+        #  INPUT DATA (add 1 for 0 based indexing)
         #  get the inputs for [start_input_idx : end_input_idx]
-        start_input_idx = (target_index - self.seq_length - self.horizon) + 1
-        end_input_idx = (target_index - self.horizon) + 1
-        x_d = self.x_d[pixel][start_input_idx:end_input_idx]
+        end_input_idx_plus_1 = (valid_current_time_index) + 1
+        start_input_idx = end_input_idx_plus_1 - self.cfg.seq_length
+        x_d = self.x_d[pixel][start_input_idx:end_input_idx_plus_1]
         if self.DEBUG:
             assert x_d.shape[0] == self.cfg.seq_length
 
         #  TARGET DATA
-        # get target for current : horizon
-        #  forecast the next `self.horizon` timesteps
-        end_fcast_correction = 1 if self.horizon == 0 else 0
-        y_ = self.y[pixel][
-            target_index : (target_index + self.horizon + end_fcast_correction)
-        ]
-        y_ = y_.reshape(-1, 1) if y_.ndim == 1 else y_
-
-        y = y_
+        y = self.y[pixel][target_index].reshape(-1, 1)
 
         if self.static_inputs is not None:
             x_s = torch.cat(self.x_s[pixel], dim=-1)
@@ -224,16 +219,15 @@ class XarrayDataset(Dataset):
         # METADATA
         # store time as float32
         # convert back to timestamp https://stackoverflow.com/a/47562725/9940782
-        time = self.times[pixel][target_index : (target_index + self.horizon)]
-        target_index = torch.from_numpy(np.array([idx]).reshape(-1))
+        time = self.times[pixel][target_index]
+        tgt_index = torch.from_numpy(np.array([target_index]).reshape(-1))
 
         # # write output dictionary
-        if (self.mode != "train") or (self.DEBUG):
-            meta = {
-                "index": target_index,
-                "target_time": time,
-            }
-            data["meta"] = meta
+        meta = {
+            "index": idx,
+            "target_time": time,
+        }
+        data["meta"] = meta
 
         data["x_d"] = x_d
         data["y"] = y

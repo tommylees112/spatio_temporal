@@ -73,52 +73,51 @@ def validate_samples(
     forecast_horizon: int,
     mode: str,
 ) -> np.ndarray:
-    n_samples = len(y)
+    n_samples = len(x_d)
     flag = np.ones(n_samples)
 
     # if any condition met then go to next iteration of loop
-    for target_index in prange(n_samples):
+    for current_index in prange(n_samples):
+        target_index = current_index + forecast_horizon
+
         # 1. not enough history (seq_length > history)
         if target_index < seq_length:
-            flag[target_index] = 0
+            flag[current_index] = 0
             continue
 
         #  5. not enough data for forecast horizon
-        if n_samples < (target_index + forecast_horizon + 1):
-            flag[target_index] = 0
+        if n_samples < (target_index + forecast_horizon):
+            flag[current_index] = 0
             continue
         #  min_x > required seq_len (allow for zero based indexing)
-        if target_index < (seq_length + forecast_horizon - 1):
-            flag[target_index] = 0
+        if target_index < (seq_length + forecast_horizon):
+            flag[current_index] = 0
             continue
 
         #  NOTE: indexing here needs to be the same as in dataloader.__getitem__
         #  2. NaN in the dynamic inputs
-        start_input_idx = (target_index - seq_length - forecast_horizon) + 1
-        end_input_idx = (target_index - forecast_horizon) + 1
-        _x_d = x_d[start_input_idx:end_input_idx]
+        end_input_idx_plus_1 = current_index + 1
+        start_input_idx = end_input_idx_plus_1 - seq_length
+        _x_d = x_d[start_input_idx:end_input_idx_plus_1]
+
         if np.any(np.isnan(_x_d)):
-            flag[target_index] = 0
+            flag[current_index] = 0
             continue
 
         #  NOTE: indexing here needs to be the same as in dataloader.__getitem__
         #  3. NaN in the outputs (only for training period)
         if mode == "train":
-            end_fcast_correction = 1 if forecast_horizon == 0 else 0
-            start_index = target_index
-            end_index = target_index + forecast_horizon + end_fcast_correction
-            _y = y[start_index:end_index]
+            _y = y[current_index]
 
-            if np.any(np.isnan(_y)):
-                # if np.prod(np.array(_y.shape)) > 0 and np.all(np.isnan(_y)):
-                flag[target_index] = 0
+            if np.isnan(_y):
+                flag[current_index] = 0
                 continue
 
         # 4. any NaN in the static features makes the target_index invalid
         if x_s is not None:
-            _x_s = x_s[target_index]
+            _x_s = x_s[current_index]
             if np.any(np.isnan(_x_s)):
-                flag[target_index] = 0
+                flag[current_index] = 0
                 continue
 
     return flag

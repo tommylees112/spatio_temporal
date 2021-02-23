@@ -42,5 +42,7 @@ if __name__ == "__main__":
         losses.append(loss.detach())
 
     plt.plot(losses, marker="x")
-    plt.gcf().savefig(f"/Users/tommylees/Downloads/{random.random() * 10 :.0f}_plot.png")
+    plt.gcf().savefig(
+        f"/Users/tommylees/Downloads/{random.random() * 10 :.0f}_plot.png"
+    )
     assert False

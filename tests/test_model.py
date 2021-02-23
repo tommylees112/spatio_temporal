@@ -36,7 +36,7 @@ class TestModels:
         y_hat = model(x)
 
         assert isinstance(y_hat, dict)
-        assert y_hat["y_hat"].shape == (1, cfg.horizon if cfg.horizon > 0 else 1)
+        assert y_hat["y_hat"].shape == (1, 1)
 
     def test_lstm_forward_pass(self, tmp_path):
         ds = pickle.load(Path("data/kenya.pkl").open("rb"))
@@ -100,7 +100,7 @@ class TestModels:
                 optimizer.zero_grad()
                 yhat = model.forward(input)
                 #  shape = [batch_size, seq_length, forecast_horizon]
-                assert yhat["y_hat"].shape == (cfg.batch_size, 1, (cfg.horizon))
+                assert yhat["y_hat"].shape == (cfg.batch_size, 1, 1)
 
                 # get the final predictions to calculate loss
                 loss = loss_obj(yhat["y_hat"], target)
@@ -116,12 +116,9 @@ class TestModels:
             # NOTE: the LSTM only returns the final hidden and cell state layer NOT each timestep
             # TODO: why is the LSTM returning a hidden array of shape (seq_length, 1, hs)
             assert before["h_n"].shape == (1, cfg.batch_size, hidden_size)
-            assert before["y_hat"].shape == (
-                cfg.batch_size,
-                1,
-                1 if cfg.horizon == 0 else cfg.horizon,
-            )
+            assert before["y_hat"].shape == (cfg.batch_size, 1, 1)
 
-            assert (
-                loss_af < loss_bf
-            ), "The model did not learn anything after one epoch of training"
+            if cfg.horizon == 1:
+                assert (
+                    loss_af < loss_bf
+                ), "The model did not learn anything after one epoch of training"

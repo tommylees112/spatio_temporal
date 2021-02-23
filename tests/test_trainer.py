@@ -78,12 +78,12 @@ class TestTester:
         outfile = sorted(list(cfg.run_dir.glob("*.nc")))[-1]
         out_ds = xr.open_dataset(outfile)
 
-        assert len(out_ds.horizon.values) == cfg.horizon
+        assert int(out_ds.horizon.values) == cfg.horizon
 
         #  Check that the times are correct
-        min_time = pd.to_datetime(out_ds.time.values.min())
+        min_time = pd.to_datetime(out_ds.time.values.min()).round("D")
         exp_min_time = cfg.test_start_date + DateOffset(
-            months=(cfg.seq_length + cfg.horizon) - 1
+            months=(cfg.seq_length + cfg.horizon)
         )
 
         assert all(
@@ -94,7 +94,7 @@ class TestTester:
             ]
         )
 
-        max_time = pd.to_datetime(out_ds.time.values.max()) + MonthEnd(-1)
+        max_time = pd.to_datetime(out_ds.time.values.max()).round("D")
         exp_max_time = cfg.test_end_date - DateOffset(months=1)
 
         assert all(
