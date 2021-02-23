@@ -43,3 +43,4 @@ notebooks/runs
 data/kenya.pkl
 *.csv
 *.nc
+*.zip
