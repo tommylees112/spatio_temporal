@@ -155,17 +155,6 @@ class TestDataLoader:
                 )[cfg.target_variable]
                 assert np.allclose(y_unnorm.reshape(y_exp.values.shape), y_exp.values)
 
-    def test_validate_samples(self):
-        #  create data with nans
-        #  ensure that the validate_samples correctly ignores them based on these criteria
-        #  1. not enough history (seq_length > history)
-        #  5. not enough data for forecast horizon
-        #  2. NaN in the dynamic inputs
-        #  3. NaN in the outputs (only for training period)
-        #  4. any NaN in the static features makes the target_index invalid
-        validate_samples
-        assert False
-
     def test_dataloader(self, tmp_path):
         ds = _make_dataset().isel(lat=slice(0, 2), lon=slice(0, 2))
         cfg = Config(Path("tests/testconfigs/test_config.yml"))
@@ -339,8 +328,8 @@ class TestDataLoader:
         expected = expected[~mask]
         dataset_loaded = dataset_loaded[~mask]
 
-        assert all(
-            dataset_loaded == expected
+        assert np.allclose(
+            dataset_loaded, expected
         ), f"The dataloader is saving the wrong data to the lookup table. {dataset_loaded[:10]} {expected[:10]}"
 
         #  get input X data from INDEX (not times)
@@ -407,4 +396,15 @@ class TestDataLoader:
 
         cfg = Config(Path("tests/testconfigs/test_config.yml"))
         create_and_assign_temp_run_path_to_config(cfg, tmp_path)
+        assert False
+
+    def test_validate_samples(self):
+        #  create data with nans
+        #  ensure that the validate_samples correctly ignores them based on these criteria
+        #  1. not enough history (seq_length > history)
+        #  5. not enough data for forecast horizon
+        #  2. NaN in the dynamic inputs
+        #  3. NaN in the outputs (only for training period)
+        #  4. any NaN in the static features makes the target_index invalid
+        validate_samples
         assert False
