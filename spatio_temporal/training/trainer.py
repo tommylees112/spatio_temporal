@@ -95,9 +95,10 @@ class Trainer(BaseTrainer):
         self.optimizer = optimizer
 
     def _reset_scheduler(self) -> None:
+        # TODO: cfg options for step_size and gamma
         if self.cfg.scheduler is not None:
             self.scheduler = optim.lr_scheduler.StepLR(
-                self.optimizer, step_size=1000, gamma=0.5
+                self.optimizer, step_size=10_000, gamma=0.7
             )
 
     def _get_scheduler(self) -> None:
@@ -200,9 +201,11 @@ class Trainer(BaseTrainer):
             self.optimizer.step()
             if self.scheduler is not None:
                 self.scheduler.step()
+                learning_rate = self.optimizer.param_groups[0]["lr"]
+            else:
+                learning_rate = self.cfg.learning_rate
 
             # memorize the training loss & set bar info
-            learning_rate = self.optimizer.param_groups[0]["lr"]
             pbar.set_postfix_str(f"{loss.item():.2f} -- LR {learning_rate:.2e}")
             train_loss.append(loss.item())
 
