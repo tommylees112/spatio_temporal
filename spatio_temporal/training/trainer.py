@@ -98,7 +98,7 @@ class Trainer(BaseTrainer):
         # TODO: cfg options for step_size and gamma
         if self.cfg.scheduler is not None:
             self.scheduler = optim.lr_scheduler.StepLR(
-                self.optimizer, step_size=10_000, gamma=0.7
+                self.optimizer, step_size=2, gamma=0.9
             )
 
     def _get_scheduler(self) -> None:
@@ -200,7 +200,6 @@ class Trainer(BaseTrainer):
 
             self.optimizer.step()
             if self.scheduler is not None:
-                self.scheduler.step()
                 learning_rate = self.optimizer.param_groups[0]["lr"]
             else:
                 learning_rate = self.cfg.learning_rate
@@ -239,6 +238,7 @@ class Trainer(BaseTrainer):
 
         for epoch in range(1, self.cfg.n_epochs + 1):
             epoch_train_loss = self._train_one_epoch(epoch)
+            self.scheduler.step()
             # self._reset_scheduler()
 
             # Save epoch weights
