@@ -3,16 +3,26 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import random
+import socket
 from tqdm import tqdm
 from spatio_temporal.config import Config
 from spatio_temporal.training.trainer import Trainer
 from spatio_temporal.model.linear_regression import LinearRegression
 
 
+def get_save_dir() -> Path:
+    if socket.gethostname() == "GPU_MachineLearning":
+        save_dir = Path("/home/tommy/spatio_temporal/runs/")
+    else:
+        save_dir = Path("/Users/tommylees/Downloads/")
+    return save_dir
+
+
 if __name__ == "__main__":
     ds = xr.open_dataset(Path("data/ALL_dynamic_ds.nc"))
-    ds = ds.isel(station_id=slice(0, 10))
-    cfg = Config(Path("tests/testconfigs/config_runoff.yml"))
+    # ds = ds.isel(station_id=slice(0, 10))
+    # cfg = Config(Path("tests/testconfigs/config_runoff.yml"))
+    cfg = Config(Path("configs/runoff.yml"))
     cfg._cfg["scheduler"] = "step"
     trainer = Trainer(cfg, ds)
 
@@ -37,12 +47,10 @@ if __name__ == "__main__":
 
         optimizer.step()
         scheduler.step()
-        print(scheduler.get_lr())
 
         losses.append(loss.detach())
 
     plt.plot(losses, marker="x")
-    plt.gcf().savefig(
-        f"/Users/tommylees/Downloads/{random.random() * 10 :.0f}_plot.png"
-    )
+    save_dir = get_save_dir()
+    plt.gcf().savefig(save_dir / f"{random.random() * 10 :.0f}_plot.png")
     assert False
