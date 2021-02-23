@@ -106,8 +106,8 @@ def validate_samples(
 
         #  NOTE: indexing here needs to be the same as in dataloader.__getitem__
         #  3. NaN in the outputs (only for training period)
-        if mode == "train":
-            _y = y[current_index]
+        if mode != "test":
+            _y = y[target_index]
 
             if np.isnan(_y):
                 flag[current_index] = 0
