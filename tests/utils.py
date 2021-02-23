@@ -68,16 +68,23 @@ def get_oxford_weather_data() -> pd.DataFrame:
     return df
 
 
-def create_test_oxford_run_data(data_path: Path("data")):
+def create_test_oxford_run_data(data_path: Path("data")) -> pd.DataFrame:
     df = get_oxford_weather_data()
-    df["time"] = pd.to_datetime(df["Date Time"])
+    try:
+        df["time"] = pd.to_datetime(df["Date Time"])
+        df = df.drop("Date Time", axis=1)
+    except KeyError:
+        df["day"] = 1
+        df["time"] = pd.to_datetime(df[['year', 'month', 'day']])
+        df = df.drop(["day", "year", "month"], axis=1)
     df["sample"] = 1
-    df = df.drop("Date Time", axis=1)
+    
     df = df.set_index(["time", "sample"])
     df.sort_index()
     df = df.sort_index()
     df = df.iloc[0:1000]
     df.to_csv(data_path / "test_oxford_weather.csv")
+    return df
 
 
 def download_test_jena_data(data_dir: Path = Path("data")) -> None:
