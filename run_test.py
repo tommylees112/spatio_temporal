@@ -8,6 +8,7 @@ from tqdm import tqdm
 from spatio_temporal.config import Config
 from spatio_temporal.training.trainer import Trainer
 from spatio_temporal.model.linear_regression import LinearRegression
+from spatio_temporal.training.train_utils import _to_device
 
 
 def get_save_dir() -> Path:
@@ -35,6 +36,7 @@ if __name__ == "__main__":
     scheduler = trainer.scheduler
 
     losses = []
+    data = _to_device(data, cfg.device)
     data = dl.__iter__().__next__()
     x = data["x_d"]
     y = data["y"]
