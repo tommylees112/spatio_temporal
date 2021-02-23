@@ -223,7 +223,7 @@ class Trainer(BaseTrainer):
             if (epoch % self.cfg.validate_every_n == 0):
                 epoch_valid_loss = self._validate_epoch(epoch)
             else:
-                epoch_valid_loss = np.array([np.nan])
+                epoch_valid_loss = np.nan
 
             print(f"Train Loss: {epoch_train_loss:.2f}")
             print(f"Valid Loss: {epoch_valid_loss:.2f}")
