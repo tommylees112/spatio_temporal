@@ -94,13 +94,15 @@ class Trainer(BaseTrainer):
             )
         self.optimizer = optimizer
 
-    def _get_scheduler(self) -> None:
-        # https://discuss.pytorch.org/t/how-to-implement-torch-optim-lr-scheduler-cosineannealinglr/28797/6
+    def _reset_scheduler(self) -> None:
         if self.cfg.scheduler is not None:
             self.scheduler = optim.lr_scheduler.StepLR(
-                self.optimizer, step_size=10, gamma=0.5
+                self.optimizer, step_size=1000, gamma=0.5
             )
-            # self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, self.cfg.n_epochs)
+
+    def _get_scheduler(self) -> None:
+        # https://discuss.pytorch.org/t/how-to-implement-torch-optim-lr-scheduler-cosineannealinglr/28797/6
+        self._reset_scheduler()
 
     def initialise_model(self) -> None:
         #  TODO: def get_model from lookup: Dict[str, Model]
@@ -199,9 +201,9 @@ class Trainer(BaseTrainer):
             if self.scheduler is not None:
                 self.scheduler.step()
 
-            # memorize the training loss
+            # memorize the training loss & set bar info
             learning_rate = self.optimizer.param_groups[0]["lr"]
-            pbar.set_postfix_str(f"{loss.item():.2f} -- LR {learning_rate}")
+            pbar.set_postfix_str(f"{loss.item():.2f} -- LR {learning_rate:.2e}")
             train_loss.append(loss.item())
 
         epoch_train_loss = np.mean(train_loss)
@@ -234,6 +236,7 @@ class Trainer(BaseTrainer):
 
         for epoch in range(1, self.cfg.n_epochs + 1):
             epoch_train_loss = self._train_one_epoch(epoch)
+            self._reset_scheduler()
 
             # Save epoch weights
             self._save_epoch_information(epoch)
