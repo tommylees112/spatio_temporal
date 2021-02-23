@@ -3,8 +3,6 @@ import xarray as xr
 import pickle
 import argparse
 
-# from torchsummary import summary
-
 #  library imports
 from spatio_temporal.config import Config
 from spatio_temporal.training.trainer import Trainer
@@ -14,7 +12,7 @@ from tests.utils import (
     _test_sklearn_model,
     get_pollution_data_beijing,
 )
-from spatio_temporal.training.eval_utils import plot_loss_curves, save_losses
+from spatio_temporal.training.eval_utils import save_loss_curves, save_losses
 
 
 def _get_args() -> dict:
@@ -82,7 +80,7 @@ if __name__ == "__main__":
         losses = trainer.train_and_validate()
 
         # save the loss curves
-        plot_loss_curves(losses, cfg)
+        save_loss_curves(losses, cfg)
         save_losses(losses, cfg)
 
         # run test after training

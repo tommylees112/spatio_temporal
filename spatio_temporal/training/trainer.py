@@ -123,6 +123,7 @@ class Trainer(BaseTrainer):
             mode="train",
             num_workers=self.cfg.num_workers,
             pin_memory=True,
+            batch_size=self.cfg.batch_size,
         )
 
         #  validation period
@@ -133,6 +134,7 @@ class Trainer(BaseTrainer):
             mode="validation",
             num_workers=self.cfg.num_workers,
             pin_memory=True,
+            batch_size=self.cfg.batch_size,
         )
 
     #################################################

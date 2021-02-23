@@ -171,8 +171,7 @@ def scatter_plot(
 
     f.savefig(cfg.run_dir / f"scatter_{model}_FH{horizon}.png")
 
-
-def plot_loss_curves(losses: Tuple[np.ndarray, np.ndarray], cfg: Config) -> None:
+def _plot_loss_curves(losses: Tuple[np.ndarray, np.ndarray]) -> Tuple[Any, Any]:
     train_losses, valid_losses = losses
     f, ax = plt.subplots()
     ax.plot(train_losses, label="Train", color="C0", marker="x")
@@ -180,6 +179,11 @@ def plot_loss_curves(losses: Tuple[np.ndarray, np.ndarray], cfg: Config) -> None
     ax.set_xlabel("Epoch")
     ax.set_ylabel("Loss")
     plt.legend()
+    return f, ax
+
+
+def save_loss_curves(losses: Tuple[np.ndarray, np.ndarray], cfg: Config) -> None:
+    f, ax = _plot_loss_curves(losses=losses)
     f.savefig(cfg.run_dir / "loss_curves.png")
 
 

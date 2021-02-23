@@ -37,6 +37,7 @@ tensorboard
 configs/
 runs/
 bin/
+notebooks/runs
 
 # data
 data/kenya.pkl
