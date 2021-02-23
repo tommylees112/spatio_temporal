@@ -215,12 +215,6 @@ class XarrayDataset(Dataset):
 
         y = y_
 
-        if torch.isnan(y):
-            #  validate_samples should be capturing these errors ...
-            raise RuntimeError(
-                f"There should be no nans in the target data (y): pixel {pixel} target_index {target_index}"
-            )
-
         if self.static_inputs is not None:
             x_s = torch.cat(self.x_s[pixel], dim=-1)
         else:
@@ -233,7 +227,7 @@ class XarrayDataset(Dataset):
         target_index = torch.from_numpy(np.array([idx]).reshape(-1))
 
         # # write output dictionary
-        if self.mode != "train":
+        if (self.mode != "train") or (self.DEBUG):
             meta = {
                 "index": target_index,
                 "target_time": time,

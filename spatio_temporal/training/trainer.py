@@ -73,7 +73,6 @@ class Trainer(BaseTrainer):
         self.memory = Memory()
         self.memory.__post_init__()
 
-
     def _get_loss_obj(self) -> None:
         if self.cfg.loss == "MSE":
             loss_fn = nn.MSELoss()
@@ -119,13 +118,21 @@ class Trainer(BaseTrainer):
         # train period
         train_ds = train_test_split(ds, cfg=self.cfg, subset="train")
         self.train_dl = PixelDataLoader(
-            train_ds, cfg=self.cfg, mode="train", num_workers=self.cfg.num_workers, pin_memory=True,
+            train_ds,
+            cfg=self.cfg,
+            mode="train",
+            num_workers=self.cfg.num_workers,
+            pin_memory=True,
         )
 
         #  validation period
         valid_ds = train_test_split(ds, cfg=self.cfg, subset="validation")
         self.valid_dl = PixelDataLoader(
-            valid_ds, cfg=self.cfg, mode="validation", num_workers=self.cfg.num_workers, pin_memory=True,
+            valid_ds,
+            cfg=self.cfg,
+            mode="validation",
+            num_workers=self.cfg.num_workers,
+            pin_memory=True,
         )
 
     #################################################
