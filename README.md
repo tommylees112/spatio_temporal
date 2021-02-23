@@ -1,5 +1,5 @@
 ## See: [neuralhydrology](https://github.com/neuralhydrology/neuralhydrology) 
-# Python Library for training Neural Networks for spatio-temporal raster data
+# Python Library for training Neural Networks for spatio-temporal raster data pixel-wise
 
 **Note**: Most of the code has been borrowed from the amazing team at [neuralhydrology](https://github.com/neuralhydrology/neuralhydrology) 
 
