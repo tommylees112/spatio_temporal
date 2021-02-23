@@ -151,8 +151,8 @@ class Tester:
         )
         return preds
 
-    def run_test(self) -> None:
-        weight_file = self._get_weight_file(self.cfg)
+    def run_test(self, epoch: Optional[int] = None) -> None:
+        weight_file = self._get_weight_file(self.cfg, epoch=epoch)
         epoch = int(weight_file.name.split(".")[0][-3:])
         self.model.load_state_dict(
             torch.load(weight_file, map_location=self.cfg.device)
