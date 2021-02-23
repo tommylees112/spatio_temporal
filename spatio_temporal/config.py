@@ -40,6 +40,7 @@ class Config:
         "forecast_variables": None,
         "static_inputs": None,
         "clip_gradient_norm": None,
+        "validate_every_n": 1,
     }
 
     def __init__(self, cfg_path: Path):
@@ -300,3 +301,8 @@ class Config:
     @property
     def clip_gradient_norm(self) -> float:
         return self.get_property_with_defaults("clip_gradient_norm")
+
+    @property
+    def validate_every_n(self) -> int:
+        return self.get_property_with_defaults("validate_every_n")
+    
