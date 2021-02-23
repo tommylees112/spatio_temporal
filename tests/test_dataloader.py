@@ -162,7 +162,6 @@ class TestDataLoader:
         dl = PixelDataLoader(
             ds, cfg=cfg, num_workers=1, mode="train", batch_size=cfg.batch_size,
         )
-        assert False
 
         assert dl.batch_size == cfg.batch_size
 

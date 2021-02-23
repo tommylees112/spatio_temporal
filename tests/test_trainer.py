@@ -1,5 +1,7 @@
 from pathlib import Path
-
+import pandas as pd
+import xarray as xr
+from pandas.tseries.offsets import DateOffset
 from tests.utils import (
     create_linear_ds,
     create_and_assign_temp_run_path_to_config,
@@ -59,16 +61,47 @@ class TestTester:
     def test_tester(self, tmp_path):
         ds = create_linear_ds().isel(lat=slice(0, 5), lon=slice(0, 5))
         cfg = Config(Path("tests/testconfigs/test_config.yml"))
-        create_and_assign_temp_run_path_to_config(cfg, tmp_path)
+        cfg._cfg["n_epochs"] = 1
+        cfg._cfg["num_workers"] = 1
+        cfg._cfg["horizon"] = 5
+        cfg.run_dir = tmp_path
 
         # initialise the train directory!
-        # expecting a `config.yml` & `normalizer.pkl`
-        cfg.dump_config(cfg.run_dir)
-        _create_dummy_normalizer(ds=ds, cfg=cfg)
+        trainer = Trainer(cfg, ds)
+        trainer.train_and_validate()
 
-        Tester(cfg=cfg, ds=ds)
+        tester = Tester(cfg=cfg, ds=ds)
 
         #  TODO: test the tester evaluation loop
+        tester.run_test()
         #  TODO: test that plots created, outputs saved
+        outfile = sorted(list(cfg.run_dir.glob("*.nc")))[-1]
+        out_ds = xr.open_dataset(outfile)
+
+        assert len(out_ds.horizon.values) == cfg.horizon
+
+        #  Check that the times are correct
+        min_time = pd.to_datetime(out_ds.time.values.min())
+        exp_min_time = cfg.test_start_date + DateOffset(months=(cfg.seq_length + cfg.horizon) - 1)
+
+        assert all(
+            [
+                (min_time.year == exp_min_time.year),
+                (min_time.month == exp_min_time.month),
+                (min_time.day == exp_min_time.day),
+            ]
+        )
+        
+        max_time = pd.to_datetime(out_ds.time.values.max())
+        exp_max_time = cfg.test_end_date
+
+        assert all(
+            [
+                (max_time.year == exp_max_time.year),
+                (max_time.month == exp_max_time.month),
+                (max_time.day == exp_max_time.day),
+            ]
+        )
+
         #  TODO: test that the correct period data are loaded into dataloaders
         #  TODO: test that the correct data comes through iteration over datalaoder
