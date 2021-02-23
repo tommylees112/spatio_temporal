@@ -43,6 +43,7 @@ class Tester:
             mode="test",
             normalizer=None,
             num_workers=self.cfg.num_workers,
+            batch_size=self.cfg.batch_size,
         )
 
     def load_model(self):
