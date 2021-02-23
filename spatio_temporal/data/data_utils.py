@@ -71,6 +71,7 @@ def validate_samples(
     y: List[np.ndarray],
     seq_length: int,
     forecast_horizon: int,
+    mode: str,
 ) -> np.ndarray:
     n_samples = len(y)
     flag = np.ones(n_samples)
@@ -102,13 +103,14 @@ def validate_samples(
 
         #  NOTE: indexing here needs to be the same as in dataloader.__getitem__
         #  3. NaN in the outputs (only for training period)
-        if y is not None:
+        if mode == "train":
             end_fcast_correction = 1 if forecast_horizon == 0 else 0
-            _y = y[
-                target_index : (target_index + forecast_horizon + end_fcast_correction)
-            ]
+            start_index = target_index
+            end_index = target_index + forecast_horizon + end_fcast_correction
+            _y = y[start_index:end_index]
 
             if np.any(np.isnan(_y)):
+                # if np.prod(np.array(_y.shape)) > 0 and np.all(np.isnan(_y)):
                 flag[target_index] = 0
                 continue
 

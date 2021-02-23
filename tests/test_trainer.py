@@ -1,7 +1,7 @@
 from pathlib import Path
 import pandas as pd
 import xarray as xr
-from pandas.tseries.offsets import DateOffset
+from pandas.tseries.offsets import DateOffset, MonthEnd
 from tests.utils import (
     create_linear_ds,
     create_and_assign_temp_run_path_to_config,
@@ -82,7 +82,9 @@ class TestTester:
 
         #  Check that the times are correct
         min_time = pd.to_datetime(out_ds.time.values.min())
-        exp_min_time = cfg.test_start_date + DateOffset(months=(cfg.seq_length + cfg.horizon) - 1)
+        exp_min_time = cfg.test_start_date + DateOffset(
+            months=(cfg.seq_length + cfg.horizon) - 1
+        )
 
         assert all(
             [
@@ -91,9 +93,9 @@ class TestTester:
                 (min_time.day == exp_min_time.day),
             ]
         )
-        
-        max_time = pd.to_datetime(out_ds.time.values.max())
-        exp_max_time = cfg.test_end_date
+
+        max_time = pd.to_datetime(out_ds.time.values.max()) + MonthEnd(-1)
+        exp_max_time = cfg.test_end_date - DateOffset(months=1)
 
         assert all(
             [

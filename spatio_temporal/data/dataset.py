@@ -170,6 +170,7 @@ class XarrayDataset(Dataset):
                 y=y,
                 seq_length=self.seq_length,
                 forecast_horizon=self.horizon,
+                mode=self.mode,
             )
 
             # store lookups with Pixel_ID and Index for that valid sample
