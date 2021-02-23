@@ -75,10 +75,10 @@ def create_test_oxford_run_data(data_path: Path("data")) -> pd.DataFrame:
         df = df.drop("Date Time", axis=1)
     except KeyError:
         df["day"] = 1
-        df["time"] = pd.to_datetime(df[['year', 'month', 'day']])
+        df["time"] = pd.to_datetime(df[["year", "month", "day"]])
         df = df.drop(["day", "year", "month"], axis=1)
     df["sample"] = 1
-    
+
     df = df.set_index(["time", "sample"])
     df.sort_index()
     df = df.sort_index()
@@ -101,13 +101,13 @@ def download_test_jena_data(data_dir: Path = Path("data")) -> None:
     df.to_csv(data_dir / "jena_climate_2009_2016.csv")
 
 
-def get_jena_data() -> pd.DataFrame:
-    df = pd.read_csv("data/test_jena_weather.csv")
+def get_jena_data(data_dir: Path = Path("data")) -> pd.DataFrame:
+    df = pd.read_csv(data_dir / "test_jena_weather.csv")
     return df
 
 
-def load_test_jena_data_as_dataset() -> xr.Dataset:
-    df = get_jena_data()
+def load_test_jena_data_as_dataset(data_dir: Path = Path("data")) -> xr.Dataset:
+    df = get_jena_data(data_dir)
     df["time"] = pd.to_datetime(df["time"])
     df = df.rename({"sample": "pixel"}, axis=1).set_index(["time", "pixel"])
     ds = df.to_xarray()

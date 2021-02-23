@@ -1,6 +1,6 @@
 # --- Experiment Configurations ---------------------------------------------------------------------
 # experiment name, used as folder name
-experiment_name: test
+experiment_name: jena
 
 # place to store run directory (if empty runs are stored in code_dir/runs/)
 run_dir:
@@ -9,14 +9,14 @@ run_dir:
 seed: 1234
 
 # training, validation and test time periods (format = 'dd/mm/yyyy')
-train_start_date: "01/01/2009"
-train_end_date: "01/05/2009"
+train_start_date: "02/01/2009"
+train_end_date: "05/01/2009"
 
-validation_start_date: "02/05/2009"
-validation_end_date: "30/05/2009"
+validation_start_date: "01/01/2009"
+validation_end_date: "02/01/2009"
 
-test_start_date: "01/06/2009"
-test_end_date: "30/07/2009"
+test_start_date: "06/01/2009"
+test_end_date: "06/07/2009"
 
 # --- Validation Configurations ---------------------------------------------------------------------
 # --- Model Configurations --------------------------------------------------------------------------
