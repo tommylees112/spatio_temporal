@@ -14,9 +14,9 @@ from spatio_temporal.config import Config
 from spatio_temporal.model.lstm import LSTM
 from spatio_temporal.model.linear_regression import LinearRegression
 from spatio_temporal.data.data_utils import train_test_split
+from spatio_temporal.training.train_utils import _to_device
 
 
-@dataclass
 class Memory:
     train_losses: Optional[Union[List[float], np.ndarray]] = None
     valid_losses: Optional[Union[List[float], np.ndarray]] = None
@@ -31,7 +31,9 @@ class Memory:
 
 
 class Trainer(BaseTrainer):
-    def __init__(self, cfg: Config, ds: xr.Dataset, _allow_subsequent_nan_losses: int = 5):
+    def __init__(
+        self, cfg: Config, ds: xr.Dataset, _allow_subsequent_nan_losses: int = 5
+    ):
         super().__init__(cfg=cfg)
 
         # set / use the run directory
@@ -62,15 +64,15 @@ class Trainer(BaseTrainer):
         # intialise loss:: self.loss_fn
         self._get_loss_obj()
 
-        # train epochs
-
     #################################################
     ##############INITIALISATION#####################
     #################################################
+
     def initialise_memory(self) -> None:
-        #  keys:
-        #  TODO: defaultdict(list) or namedtuple or dataclass
+        #  keys:: 'train_losses' 'valid_losses'
         self.memory = Memory()
+        self.memory.__post_init__()
+
 
     def _get_loss_obj(self) -> None:
         if self.cfg.loss == "MSE":
@@ -116,11 +118,15 @@ class Trainer(BaseTrainer):
         # Train-Validation split
         # train period
         train_ds = train_test_split(ds, cfg=self.cfg, subset="train")
-        self.train_dl = PixelDataLoader(train_ds, cfg=self.cfg, mode="train", num_workers=self.cfg.num_workers)
+        self.train_dl = PixelDataLoader(
+            train_ds, cfg=self.cfg, mode="train", num_workers=self.cfg.num_workers, pin_memory=True,
+        )
 
         #  validation period
         valid_ds = train_test_split(ds, cfg=self.cfg, subset="validation")
-        self.valid_dl = PixelDataLoader(valid_ds, cfg=self.cfg, mode="validation", num_workers=self.cfg.num_workers)
+        self.valid_dl = PixelDataLoader(
+            valid_ds, cfg=self.cfg, mode="validation", num_workers=self.cfg.num_workers, pin_memory=True,
+        )
 
     #################################################
     ##############TRAINING LOOP######################
@@ -133,6 +139,9 @@ class Trainer(BaseTrainer):
         #  batch the training data and iterate over batches
         pbar = tqdm(self.train_dl, desc=f"Training Epoch {epoch}: ")
         for data in pbar:
+            #  to GPU
+            data = _to_device(data, self.device)
+
             x, y = data["x_d"], data["y"]
 
             #  zero gradient before forward pass
@@ -149,17 +158,20 @@ class Trainer(BaseTrainer):
             if torch.isnan(loss):
                 nan_count += 1
                 if nan_count > self._allow_subsequent_nan_losses:
-                    raise RuntimeError(f"Loss was NaN for {nan_count} times in a row. Stopped training.")
+                    raise RuntimeError(
+                        f"Loss was NaN for {nan_count} times in a row. Stopped training."
+                    )
 
             # backward pass (get gradients, step optimizer, delete old gradients)
             loss.backward()
-            self.optimizer.step()
 
-            #  get gradients
+            #  TODO: clip gradients after backward pass; before optimizer step
             if self.cfg.clip_gradient_norm is not None:
                 torch.nn.utils.clip_grad_norm_(
                     self.model.parameters(), self.cfg.clip_gradient_norm
                 )
+
+            self.optimizer.step()
 
             # memorize the training loss
             pbar.set_postfix_str(f"{loss.item():.2f}")
@@ -175,12 +187,15 @@ class Trainer(BaseTrainer):
         with torch.no_grad():
             valid_loss = []
             for data in val_pbar:
+
+                #  to GPU
+                data = _to_device(data, self.device)
+
+                # run forward pass
                 x_val, y_val = data["x_d"], data["y"]
                 y_hat_val = self.model(x_val)
                 val_loss = self.loss_fn(y_hat_val["y_hat"], y_val)
 
-                # if torch.isnan(val_loss):
-                #     assert False, "Why is this happening?"
                 valid_loss.append(val_loss.item())
 
         epoch_valid_loss = np.mean(valid_loss)
@@ -206,22 +221,3 @@ class Trainer(BaseTrainer):
 
         self.memory.to_arrays()
         return self.memory.train_losses, self.memory.valid_losses
-
-    #################################################
-    ##############TRAINING GOODIES###################
-    #################################################
-
-    def _adjust_learning_rate(self, new_lr: float):
-        # TODO: adjust the learning rate as go through
-        for param_group in self.optimizer.param_groups:
-            old_lr = param_group["lr"]
-            param_group["lr"] = new_lr
-
-    def _save_epoch_information(self, epoch: int) -> None:
-        # SAVE model weights
-        weight_path = self.cfg.run_dir / f"model_epoch{epoch:03d}.pt"
-        torch.save(self.model.state_dict(), str(weight_path))
-
-        # SAVE optimizer state dict
-        optimizer_path = self.cfg.run_dir / f"optimizer_state_epoch{epoch:03d}.pt"
-        torch.save(self.optimizer.state_dict(), str(optimizer_path))
