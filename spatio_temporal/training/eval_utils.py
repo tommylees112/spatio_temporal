@@ -28,9 +28,18 @@ def _create_dict_data_coords_for_individual_sample(
     return data
 
 
-def get_lists_of_metadata(
-    data: Dict[str, Union[Tensor, Any]], dataloader
+def create_metadata_arrays(
+    data: Dict[str, Union[Tensor, Any]], dataloader: PixelDataLoader
 ) -> Tuple[np.ndarray, ...]:
+    """Create metadata arrays for time, pixel_id 
+
+    Args:
+        data (Dict[str, Union[Tensor, Any]]): The batched data output by dataloader
+        dataloader ([PixelDataLoader]): Dataloader which data read from 
+
+    Returns:
+        Tuple[np.ndarray, ...]: [description]
+    """
     indexes = [int(ix) for ix in data["meta"]["index"]]
     times = (
         data["meta"]["target_time"]
@@ -40,13 +49,23 @@ def get_lists_of_metadata(
         .astype("datetime64[ns]")
         .squeeze()
     )
-    times = times.reshape(-1) if times.ndim == 0 else times
-    #  create a row vector if there is more than one forecast horizon
-    times = times.reshape(1, -1) if len(times) > 1 else times
+    #  create (batch_size, n_target_times)
+    horizon = dataloader.dataset.cfg.horizon
+    n_target_times = 1 if horizon < 2 else horizon
+    times = times.reshape(-1, n_target_times) if len(times) > 1 else times
 
+    # copy pixel arrays for each n_target_times
     pixels = np.array(
         [dataloader.dataset.lookup_table[int(index)][0] for index in indexes]
     )
+    pixels = np.tile(pixels.reshape(-1, 1), n_target_times)
+
+    #  get forecast horizons as another array
+    forecast_horizons = np.arange(1, horizon + 1) if horizon > 1 else horizon
+    forecast_horizons = np.tile(forecast_horizons, pixels.shape[0]).reshape(
+        pixels.shape
+    )
+
     #  TODO: fix this hack (maybe remove times from being stored in data)
     if times.size == 0:
         target_ixs = [
@@ -57,7 +76,7 @@ def get_lists_of_metadata(
             times_.append(dataloader.dataset.times[pixel][target_ix])
         times = np.array(times_).astype("datetime64[ns]")
 
-    return pixels, times
+    return pixels, times, forecast_horizons
 
 
 def convert_individual_to_xarray(
@@ -68,7 +87,7 @@ def convert_individual_to_xarray(
 ) -> xr.Dataset:
     # back convert to xarray object ...
     assert dataloader.batch_size < 2, "This method does not work for batch sizes > 1"
-    times, pixels = get_lists_of_metadata(data, dataloader)
+    times, pixels = create_metadata_arrays(data, dataloader)
 
     # reshape data to N PIXELS; N TIMES
     n_pixels = len(np.unique(pixels))
@@ -161,6 +180,7 @@ def data_in_memory_to_xarray(
 def scatter_plot(
     preds: xr.Dataset, cfg: Config, model: str = "nn", horizon: int = 0
 ) -> None:
+    preds = preds.sel(horizon=horizon).drop("horizon")
     f, ax = plt.subplots()
     ax.scatter(
         preds.obs.values.flatten(), preds.sim.values.flatten(), marker="x", alpha=0.1
@@ -170,6 +190,7 @@ def scatter_plot(
     ax.set_title(f"{model} Observed vs. Predicted [FH {horizon}]")
 
     f.savefig(cfg.run_dir / f"scatter_{model}_FH{horizon}.png")
+
 
 def _plot_loss_curves(losses: Tuple[np.ndarray, np.ndarray]) -> Tuple[Any, Any]:
     train_losses, valid_losses = losses

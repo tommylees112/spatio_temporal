@@ -220,7 +220,7 @@ class Trainer(BaseTrainer):
             # Save epoch weights
             self._save_epoch_information(epoch)
 
-            if (epoch % self.cfg.validate_every_n == 0):
+            if epoch % self.cfg.validate_every_n == 0:
                 epoch_valid_loss = self._validate_epoch(epoch)
             else:
                 epoch_valid_loss = np.nan

@@ -305,4 +305,3 @@ class Config:
     @property
     def validate_every_n(self) -> int:
         return self.get_property_with_defaults("validate_every_n")
-    
