@@ -34,7 +34,7 @@ batch_size: 256
 seq_length: 10
 
 # horizon to make predictions over ([1, ..., horizon])
-horizon: 1
+horizon: 0
 
 # specify optimizer [Adam]
 optimizer: Adam
@@ -43,7 +43,7 @@ optimizer: Adam
 loss: MSE
 
 # number of parallel workers used by the dataloaders
-num_workers: 4
+num_workers: 1
 
 # --- Data Configurations ---------------------------------------------------------------------------
 # Path to data set root

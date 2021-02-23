@@ -41,6 +41,7 @@ class Config:
         "static_inputs": None,
         "clip_gradient_norm": None,
         "validate_every_n": 1,
+        "scheduler": None,
     }
 
     def __init__(self, cfg_path: Path):
@@ -305,3 +306,7 @@ class Config:
     @property
     def validate_every_n(self) -> int:
         return self.get_property_with_defaults("validate_every_n")
+
+    @property
+    def scheduler(self) -> Optional[str]:
+        return self.get_property_with_defaults("scheduler")

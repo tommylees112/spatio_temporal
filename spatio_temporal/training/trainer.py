@@ -5,6 +5,7 @@ import torch.nn as nn
 from tqdm import tqdm
 from dataclasses import dataclass
 from typing import List, Union, Optional
+import torch.optim as optim
 
 #  library imports
 from spatio_temporal.model.losses import RMSELoss
@@ -61,6 +62,9 @@ class Trainer(BaseTrainer):
         # intialise optimzier:: self.optimizer
         self._get_optimizer()
 
+        # initialise scheduler:: self.scheduler
+        self._get_scheduler()
+
         # intialise loss:: self.loss_fn
         self._get_loss_obj()
 
@@ -89,6 +93,12 @@ class Trainer(BaseTrainer):
                 [pam for pam in self.model.parameters()], lr=self.cfg.learning_rate
             )
         self.optimizer = optimizer
+
+    def _get_scheduler(self) -> None:
+        # https://discuss.pytorch.org/t/how-to-implement-torch-optim-lr-scheduler-cosineannealinglr/28797/6
+        if self.cfg.scheduler is not None:
+            self.scheduler =  optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.5)
+            # self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, self.cfg.n_epochs)
 
     def initialise_model(self) -> None:
         #  TODO: def get_model from lookup: Dict[str, Model]
@@ -179,8 +189,10 @@ class Trainer(BaseTrainer):
                 torch.nn.utils.clip_grad_norm_(
                     self.model.parameters(), self.cfg.clip_gradient_norm
                 )
-
+            
             self.optimizer.step()
+            if self.scheduler is not None:
+                self.scheduler.step()
 
             # memorize the training loss
             pbar.set_postfix_str(f"{loss.item():.2f}")
