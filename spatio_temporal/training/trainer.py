@@ -200,7 +200,8 @@ class Trainer(BaseTrainer):
                 self.scheduler.step()
 
             # memorize the training loss
-            pbar.set_postfix_str(f"{loss.item():.2f}")
+            learning_rate = self.optimizer.param_groups[0]["lr"]
+            pbar.set_postfix_str(f"{loss.item():.2f} -- LR {learning_rate}")
             train_loss.append(loss.item())
 
         epoch_train_loss = np.mean(train_loss)
