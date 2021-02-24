@@ -147,7 +147,7 @@ class Tester:
         )
         return preds
 
-    def run_test(self, epoch: Optional[int] = None, unnormalize: bool = True, plot: bool = True, save_preds: bool = True) -> None:
+    def run_test(self, epoch: Optional[int] = None, unnormalize: bool = True, plot: bool = True, save_preds: bool = True) -> xr.Dataset:
         weight_file = self._get_weight_file(self.cfg, epoch=epoch)
         epoch = int(weight_file.name.split(".")[0][-3:])
         self.model.load_state_dict(
@@ -173,3 +173,5 @@ class Tester:
             preds.to_netcdf(
                 self.cfg.run_dir / f"test_predictions_E{str(epoch).zfill(3)}.nc"
             )
+        
+        return preds
