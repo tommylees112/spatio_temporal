@@ -60,8 +60,8 @@ class BiLSTM(nn.Module):
         x_d = data
 
         # Set initial states [1, batch_size, hidden_size]
-        h0 = torch.zeros(self.num_layers*2, x_d.size(0), self.hidden_size)
-        c0 = torch.zeros(self.num_layers*2, x_d.size(0), self.hidden_size)
+        h0 = torch.zeros(self.num_layers*2, x_d.size(0), self.hidden_size).to(x_d.device)
+        c0 = torch.zeros(self.num_layers*2, x_d.size(0), self.hidden_size).to(x_d.device)
 
         # Forward propagate LSTM
         # out: [batch_size, seq_length, hidden_size*2]

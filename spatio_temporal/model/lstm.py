@@ -69,8 +69,8 @@ class LSTM(nn.Module):
         #     # concatenate onto x_d
 
         # Set initial states [1, batch_size, hidden_size]
-        h0 = torch.zeros(self.num_layers, x_d.size(0), self.hidden_size)
-        c0 = torch.zeros(self.num_layers, x_d.size(0), self.hidden_size)
+        h0 = torch.zeros(self.num_layers, x_d.size(0), self.hidden_size).to(x_d.device)
+        c0 = torch.zeros(self.num_layers, x_d.size(0), self.hidden_size).to(x_d.device)
 
         #  lstm_output = (batch_size, seq_length, hidden_size)
         lstm_output, (h_n, c_n) = self.lstm(x_d, (h0, c0))
