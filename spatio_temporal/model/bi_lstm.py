@@ -2,9 +2,15 @@ import torch
 import torch.nn as nn
 import numpy as np
 import torch.optim as optim
-# from spatio_temporal.model.base import BaseNN
 
-class LSTM(nn.Module):
+
+class BiLSTM(nn.Module):
+    """Bi-Directional LSTM
+    https://github.com/yunjey/pytorch-tutorial/blob/master/tutorials/02-intermediate/bidirectional_recurrent_neural_network/main.py
+    
+    Args:
+        nn ([type]): [description]
+    """
     def __init__(
         self,
         input_size: int,
@@ -14,7 +20,7 @@ class LSTM(nn.Module):
         dropout_rate: float = 0.4,
     ):
         super().__init__()
-
+        
         # hyperparameters
         self.hidden_size = hidden_size
         self.input_size = input_size
@@ -23,18 +29,16 @@ class LSTM(nn.Module):
         self.dropout = nn.Dropout(p=dropout_rate)
 
         self.num_layers = 1
-
+        
         #  LSTM cell
         self.lstm = nn.LSTM(
-            input_size=input_size, hidden_size=self.hidden_size, batch_first=True, num_layers=self.num_layers
+            input_size=self.input_size, hidden_size=self.hidden_size, batch_first=True, bidirectional=True
         )
 
-        #  Fully connected layer with ReLU activation
-        fc_layer = nn.Linear(self.hidden_size, self.output_size)
-        # self.head = nn.Sequential(*[fc_layer, nn.ReLU()])
+        fc_layer = nn.Linear(hidden_size*2, self.output_size)  # 2 for bidirection
         self.head = nn.Sequential(*[fc_layer])
 
-        # initialize weights
+        # self.intialize_weights
         self.initialize_weights()
 
     def initialize_weights(self):
@@ -52,29 +56,17 @@ class LSTM(nn.Module):
                 nn.init.constant_(dense_layer.bias.data, 0)
 
     def forward(self, data):
-        """
-        Returns
-        -------
-        Dict[str, torch.Tensor]
-            Model outputs and intermediate states as a dictionary.
-                - `y_hat`: model predictions of shape [batch size, sequence length, number of target variables].
-                - `h_n`: hidden state at the last time step of the sequence of shape [batch size, 1, hidden size].
-                - `c_n`: cell state at the last time step of the sequence of shape [batch size, 1, hidden size].
-        """
         # input = [batch_size, seq_length, n_features]
         x_d = data
 
-        # if 'x_s' in data:
-        #     x_s = data['x_s'].unsqueeze(0).repeat(x_d.shape[0], 1, 1)
-        #     # concatenate onto x_d
-
         # Set initial states [1, batch_size, hidden_size]
-        h0 = torch.zeros(self.num_layers, x_d.size(0), self.hidden_size)
-        c0 = torch.zeros(self.num_layers, x_d.size(0), self.hidden_size)
+        h0 = torch.zeros(self.num_layers*2, x_d.size(0), self.hidden_size)
+        c0 = torch.zeros(self.num_layers*2, x_d.size(0), self.hidden_size)
 
-        #  lstm_output = (batch_size, seq_length, hidden_size)
+        # Forward propagate LSTM
+        # out: [batch_size, seq_length, hidden_size*2]
         lstm_output, (h_n, c_n) = self.lstm(x_d, (h0, c0))
-
+        
         # final_output = [batch_size, 1, hidden_size]
         # only return the predictions from the final step in sequence_length
         final_output = lstm_output[:, -1:, :]
