@@ -178,7 +178,7 @@ def data_in_memory_to_xarray(
 def scatter_plot(
     preds: xr.Dataset, cfg: Config, model: str = "nn", horizon: int = 0
 ) -> None:
-    preds = preds.sel(horizon=horizon).drop("horizon")
+    preds = preds.drop("horizon")
     f, ax = plt.subplots()
     ax.scatter(
         preds.obs.values.flatten(), preds.sim.values.flatten(), marker="x", alpha=0.1
@@ -216,3 +216,9 @@ def save_losses(losses: Tuple[np.ndarray, np.ndarray], cfg: Config) -> None:
         {"train": train_losses.flatten(), "validation": valid_losses.flatten()}
     )
     df.to_csv(cfg.run_dir / "losses.csv")
+
+
+def _fix_output_timestamps_monthly(preds: xr.Dataset) -> xr.Dataset:
+    # beacause of imprecise storage of datetime -> float
+    preds["time"] = [pd.to_datetime(t).round("D") for t in preds.time.values]
+    return preds

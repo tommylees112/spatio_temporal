@@ -48,6 +48,28 @@ class Normalizer:
 
         return (data * std_) + mean_
 
+    def unnormalize_preds(self, preds: xr.Dataset, cfg: Config) -> xr.Dataset:
+        """Unnormalize the output of the Tester.test_run() process
+
+        Args:
+            preds (xr.Dataset): Created dataset from the Tester.test_run()
+            cfg (Config): configuration for the current experiment
+
+        Returns:
+            xr.Dataset: Unnormalized obs/sim for the target variable
+        """
+        mean = self.mean_.rename({"sample": "pixel"})
+        std = self.std_.rename({"sample": "pixel"})
+        target = cfg.target_variable 
+
+        # only ever one forecast_horizon as output
+        unnorm_ds = preds.copy().isel(horizon=0)
+        
+        for variable in preds.data_vars:
+            unnorm_ds[variable] = (unnorm_ds[variable] * std[target]) + mean[target]
+        
+        return unnorm_ds
+
     @staticmethod
     def _unpack_spatial_coords(ds: xr.Dataset, spatial_dims: List[str]) -> pd.DataFrame:
         df = ds.to_dataframe().reset_index()

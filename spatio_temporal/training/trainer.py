@@ -12,11 +12,9 @@ from spatio_temporal.model.losses import RMSELoss
 from spatio_temporal.training.base_trainer import BaseTrainer
 from spatio_temporal.data.dataloader import PixelDataLoader
 from spatio_temporal.config import Config
-from spatio_temporal.model.lstm import LSTM
 from spatio_temporal.model.linear_regression import LinearRegression
 from spatio_temporal.data.data_utils import train_test_split
-from spatio_temporal.training.train_utils import _to_device
-
+from spatio_temporal.training.train_utils import _to_device, get_model
 
 class Memory:
     train_losses: Optional[Union[List[float], np.ndarray]] = None
@@ -96,18 +94,19 @@ class Trainer(BaseTrainer):
 
     def _reset_scheduler(self) -> None:
         #  TODO: cfg options for step_size and gamma
-        if self.cfg.scheduler is not None:
-            #  "step"
-            # self.scheduler = optim.lr_scheduler.StepLR(
-            #     self.optimizer, step_size=10, gamma=0.1
-            # )
-            # "one_cycle"
+        if self.cfg.scheduler == "step":
+            self.scheduler = optim.lr_scheduler.StepLR(
+                self.optimizer, step_size=10, gamma=0.1
+            )
+        elif self.cfg.scheduler == "cycle":
             self.scheduler = optim.lr_scheduler.OneCycleLR(
                 self.optimizer,
                 max_lr=1e-2,
                 steps_per_epoch=len(self.train_dl.dataset),
                 epochs=self.cfg.n_epochs,
             )
+        else:
+            print("** No scheduler selected ** ")
 
     def _get_scheduler(self) -> None:
         # https://discuss.pytorch.org/t/how-to-implement-torch-optim-lr-scheduler-cosineannealinglr/28797/6
@@ -115,12 +114,7 @@ class Trainer(BaseTrainer):
 
     def initialise_model(self) -> None:
         #  TODO: def get_model from lookup: Dict[str, Model]
-        self.model = LSTM(
-            input_size=self.input_size,
-            hidden_size=self.cfg.hidden_size,
-            output_size=self.output_size,
-            forecast_horizon=self.cfg.horizon,
-        ).to(self.cfg.device)
+        self.model = get_model(cfg=self.cfg, input_size=self.input_size, output_size=self.output_size)
 
     def initialise_data(self, ds: xr.Dataset, mode: str = "train") -> None:
         """Load data from DataLoaders and store as attributes
@@ -207,7 +201,7 @@ class Trainer(BaseTrainer):
                 )
 
             self.optimizer.step()
-            
+
             if self.scheduler is not None:
                 learning_rate = self.optimizer.param_groups[0]["lr"]
                 self.scheduler.step()
