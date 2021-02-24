@@ -98,7 +98,7 @@ class Trainer(BaseTrainer):
         # TODO: cfg options for step_size and gamma
         if self.cfg.scheduler is not None:
             self.scheduler = optim.lr_scheduler.StepLR(
-                self.optimizer, step_size=1, gamma=0.7
+                self.optimizer, step_size=10, gamma=0.1
             )
 
     def _get_scheduler(self) -> None:
