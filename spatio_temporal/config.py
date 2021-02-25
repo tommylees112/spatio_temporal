@@ -43,6 +43,7 @@ class Config:
         "validate_every_n": 1,
         "scheduler": None,
         "model": "lstm",
+        "dropout": 0.4,
     }
 
     def __init__(self, cfg_path: Path):
@@ -315,3 +316,7 @@ class Config:
     @property
     def model(self) -> str:
         return self.get_property_with_defaults("model")
+
+    @property
+    def dropout(self) -> str:
+        return self.get_property_with_defaults("dropout")

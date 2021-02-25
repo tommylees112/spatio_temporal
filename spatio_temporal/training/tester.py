@@ -51,7 +51,9 @@ class Tester:
 
     def load_model(self):
         #  TODO: def get_model from lookup: Dict[str, Model]
-        self.model = get_model(cfg=self.cfg, input_size=self.input_size, output_size=self.output_size)
+        self.model = get_model(
+            cfg=self.cfg, input_size=self.input_size, output_size=self.output_size
+        )
 
     @staticmethod
     def _get_weight_file(cfg: Config, epoch: Optional[int] = None) -> Path:
@@ -113,7 +115,7 @@ class Tester:
                 sim = y_hat["y_hat"].detach().cpu().numpy()
                 obs = y.detach().cpu().numpy()
 
-                # -- Recreate the output data with metadata -- # 
+                #  -- Recreate the output data with metadata -- #
                 pixels, times, horizons = create_metadata_arrays(data, self.test_dl)
 
                 #  TODO: check that these reshapes work correctly
@@ -147,7 +149,13 @@ class Tester:
         )
         return preds
 
-    def run_test(self, epoch: Optional[int] = None, unnormalize: bool = True, plot: bool = True, save_preds: bool = True) -> xr.Dataset:
+    def run_test(
+        self,
+        epoch: Optional[int] = None,
+        unnormalize: bool = True,
+        plot: bool = True,
+        save_preds: bool = True,
+    ) -> xr.Dataset:
         weight_file = self._get_weight_file(self.cfg, epoch=epoch)
         epoch = int(weight_file.name.split(".")[0][-3:])
         self.model.load_state_dict(
@@ -163,15 +171,15 @@ class Tester:
             normalizer = self.test_dl.dataset.normalizer
             preds = normalizer.unnormalize_preds(preds=preds, cfg=self.cfg)
 
-        # scatter plot the predictions
+        #  scatter plot the predictions
         if plot:
             for horizon in preds.horizon.values.reshape(-1):
                 scatter_plot(preds, self.cfg, model="lstm", horizon=horizon)
 
-        # save the outputs
+        #  save the outputs
         if save_preds:
             preds.to_netcdf(
                 self.cfg.run_dir / f"test_predictions_E{str(epoch).zfill(3)}.nc"
             )
-        
+
         return preds

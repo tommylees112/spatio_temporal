@@ -219,6 +219,6 @@ def save_losses(losses: Tuple[np.ndarray, np.ndarray], cfg: Config) -> None:
 
 
 def _fix_output_timestamps_monthly(preds: xr.Dataset) -> xr.Dataset:
-    # beacause of imprecise storage of datetime -> float
+    #  beacause of imprecise storage of datetime -> float
     preds["time"] = [pd.to_datetime(t).round("D") for t in preds.time.values]
     return preds

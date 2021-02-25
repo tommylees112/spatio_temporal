@@ -60,14 +60,14 @@ class Normalizer:
         """
         mean = self.mean_.rename({"sample": "pixel"})
         std = self.std_.rename({"sample": "pixel"})
-        target = cfg.target_variable 
+        target = cfg.target_variable
 
-        # only ever one forecast_horizon as output
+        #  only ever one forecast_horizon as output
         unnorm_ds = preds.copy().isel(horizon=0)
-        
+
         for variable in preds.data_vars:
             unnorm_ds[variable] = (unnorm_ds[variable] * std[target]) + mean[target]
-        
+
         return unnorm_ds
 
     @staticmethod

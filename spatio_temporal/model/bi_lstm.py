@@ -11,6 +11,7 @@ class BiLSTM(nn.Module):
     Args:
         nn ([type]): [description]
     """
+
     def __init__(
         self,
         input_size: int,
@@ -20,7 +21,7 @@ class BiLSTM(nn.Module):
         dropout_rate: float = 0.4,
     ):
         super().__init__()
-        
+
         # hyperparameters
         self.hidden_size = hidden_size
         self.input_size = input_size
@@ -29,16 +30,19 @@ class BiLSTM(nn.Module):
         self.dropout = nn.Dropout(p=dropout_rate)
 
         self.num_layers = 1
-        
+
         #  LSTM cell
         self.lstm = nn.LSTM(
-            input_size=self.input_size, hidden_size=self.hidden_size, batch_first=True, bidirectional=True
+            input_size=self.input_size,
+            hidden_size=self.hidden_size,
+            batch_first=True,
+            bidirectional=True,
         )
 
-        fc_layer = nn.Linear(hidden_size*2, self.output_size)  # 2 for bidirection
+        fc_layer = nn.Linear(hidden_size * 2, self.output_size)  # 2 for bidirection
         self.head = nn.Sequential(*[fc_layer])
 
-        # self.intialize_weights
+        #  self.intialize_weights
         self.initialize_weights()
 
     def initialize_weights(self):
@@ -60,13 +64,17 @@ class BiLSTM(nn.Module):
         x_d = data
 
         # Set initial states [1, batch_size, hidden_size]
-        h0 = torch.zeros(self.num_layers*2, x_d.size(0), self.hidden_size).to(x_d.device)
-        c0 = torch.zeros(self.num_layers*2, x_d.size(0), self.hidden_size).to(x_d.device)
+        h0 = torch.zeros(self.num_layers * 2, x_d.size(0), self.hidden_size).to(
+            x_d.device
+        )
+        c0 = torch.zeros(self.num_layers * 2, x_d.size(0), self.hidden_size).to(
+            x_d.device
+        )
 
         # Forward propagate LSTM
         # out: [batch_size, seq_length, hidden_size*2]
         lstm_output, (h_n, c_n) = self.lstm(x_d, (h0, c0))
-        
+
         # final_output = [batch_size, 1, hidden_size]
         # only return the predictions from the final step in sequence_length
         final_output = lstm_output[:, -1:, :]
