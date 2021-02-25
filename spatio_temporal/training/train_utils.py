@@ -17,11 +17,7 @@ def _to_device(data: Dict[str, Tensor], device: str) -> Dict[str, Tensor]:
     return data
 
 
-def get_model(
-    input_size: int,
-    output_size: int,
-    cfg: Config
-) -> Any:
+def get_model(input_size: int, output_size: int, cfg: Config) -> Any:
     #  TODO: def get_model from lookup: Dict[str, Model]
     model_str = cfg.model.lower()
     if model_str == "lstm":

@@ -19,6 +19,25 @@ class Normalizer:
             assert isinstance(self.mean_, xr.Dataset)
             assert isinstance(self.std_, xr.Dataset)
 
+    @staticmethod
+    def _update_xarray_value(ds: xr.Dataset, variable: str, value: float) -> xr.Dataset:
+        shape = tuple([shape for shape in ds.dims.values()])
+        key = tuple([key for key in ds.dims.keys()])
+        values = (key, np.array(value).repeat(shape).astype(float))
+
+        ds[variable] = values
+        return ds
+
+    def update_mean_with_constant(self, variable: str, mean_value: float) -> None:
+        updated_mean = self.mean_.copy()
+        updated_mean = self._update_xarray_value(updated_mean, variable, mean_value)
+        self.mean_ = updated_mean
+
+    def update_std_with_constant(self, variable: str, std_value: float) -> None:
+        updated_std = self.std_.copy()
+        updated_std = self._update_xarray_value(updated_std, variable, std_value)
+        self.std_ = updated_std
+
     def fit(self, fit_ds: xr.Dataset, collapse_dims: List[str] = ["time"]):
         self.mean_ = fit_ds.mean(dim=collapse_dims)
         self.std_ = fit_ds.std(dim=collapse_dims)
@@ -60,14 +79,14 @@ class Normalizer:
         """
         mean = self.mean_.rename({"sample": "pixel"})
         std = self.std_.rename({"sample": "pixel"})
-        target = cfg.target_variable 
+        target = cfg.target_variable
 
-        # only ever one forecast_horizon as output
+        #  only ever one forecast_horizon as output
         unnorm_ds = preds.copy().isel(horizon=0)
-        
+
         for variable in preds.data_vars:
             unnorm_ds[variable] = (unnorm_ds[variable] * std[target]) + mean[target]
-        
+
         return unnorm_ds
 
     @staticmethod

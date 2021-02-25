@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 import numpy as np
 import torch.optim as optim
+
 # from spatio_temporal.model.base import BaseNN
+
 
 class LSTM(nn.Module):
     def __init__(
@@ -26,7 +28,10 @@ class LSTM(nn.Module):
 
         #  LSTM cell
         self.lstm = nn.LSTM(
-            input_size=input_size, hidden_size=self.hidden_size, batch_first=True, num_layers=self.num_layers
+            input_size=input_size,
+            hidden_size=self.hidden_size,
+            batch_first=True,
+            num_layers=self.num_layers,
         )
 
         #  Fully connected layer with ReLU activation

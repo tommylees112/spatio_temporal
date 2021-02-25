@@ -16,6 +16,7 @@ from spatio_temporal.model.linear_regression import LinearRegression
 from spatio_temporal.data.data_utils import train_test_split
 from spatio_temporal.training.train_utils import _to_device, get_model
 
+
 class Memory:
     train_losses: Optional[Union[List[float], np.ndarray]] = None
     valid_losses: Optional[Union[List[float], np.ndarray]] = None
@@ -86,10 +87,18 @@ class Trainer(BaseTrainer):
         self.loss_fn = loss_fn
 
     def _get_optimizer(self) -> None:
-        if self.cfg.optimizer == "Adam":
+        if self.cfg.optimizer.lower() == "adam":
             optimizer = torch.optim.Adam(
                 [pam for pam in self.model.parameters()], lr=self.cfg.learning_rate
             )
+        elif self.cfg.optimizer.lower() == "adamw":
+            optimizer = torch.optim.AdamW(
+                [pam for pam in self.model.parameters()], lr=self.cfg.learning_rate
+            )
+        else:
+            assert (
+                False
+            ), f"{self.cfg.optimizer} is not a valid optimizer choose one of: Adam AdamW"
         self.optimizer = optimizer
 
     def _reset_scheduler(self) -> None:
@@ -101,7 +110,7 @@ class Trainer(BaseTrainer):
         elif self.cfg.scheduler == "cycle":
             self.scheduler = optim.lr_scheduler.OneCycleLR(
                 self.optimizer,
-                max_lr=1e-2,
+                max_lr=self.cfg.learning_rate,
                 steps_per_epoch=len(self.train_dl.dataset),
                 epochs=self.cfg.n_epochs,
             )
@@ -114,7 +123,9 @@ class Trainer(BaseTrainer):
 
     def initialise_model(self) -> None:
         #  TODO: def get_model from lookup: Dict[str, Model]
-        self.model = get_model(cfg=self.cfg, input_size=self.input_size, output_size=self.output_size)
+        self.model = get_model(
+            cfg=self.cfg, input_size=self.input_size, output_size=self.output_size
+        )
 
     def initialise_data(self, ds: xr.Dataset, mode: str = "train") -> None:
         """Load data from DataLoaders and store as attributes
@@ -146,6 +157,8 @@ class Trainer(BaseTrainer):
             self.train_dl.dataset.y != {}
         ), f"Train Period loads in no data for period {self.cfg.train_start_date} -- {self.cfg.train_end_date} with seq_length {self.cfg.seq_length}"
 
+        normalizer = self.train_dl.normalizer
+
         #  validation period
         valid_ds = train_test_split(ds, cfg=self.cfg, subset="validation")
         self.valid_dl = PixelDataLoader(
@@ -155,6 +168,7 @@ class Trainer(BaseTrainer):
             num_workers=self.cfg.num_workers,
             pin_memory=True,
             batch_size=self.cfg.batch_size,
+            normalizer=normalizer,
         )
 
     #################################################
