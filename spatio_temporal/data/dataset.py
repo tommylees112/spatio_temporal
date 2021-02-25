@@ -67,7 +67,7 @@ class XarrayDataset(Dataset):
 
         #  TODO: make normalizer optional (e.g. for Runoff data)
         #  TODO: normalize only specific variables, e.g. inputs not outputs
-        ds = self.run_normalisation(ds, normalizer=normalizer)
+        ds = self.run_normalisation(ds=ds, normalizer=normalizer)
         if self.DEBUG:
             # save the stacked dataset to memory to check dataloading
             self.ds = ds
@@ -106,6 +106,20 @@ class XarrayDataset(Dataset):
     ) -> xr.Dataset:
         if self.mode == "train":
             self.normalizer = Normalizer(fit_ds=ds, collapse_dims=collapse_dims)
+
+            #  Manually set the mean_ / std_ (defined in cfg)
+            if self.cfg.constant_mean is not None:
+                for variable in [k for k in self.cfg.constant_mean.keys()]:
+                    self.normalizer.update_mean_with_constant(
+                        variable=variable, mean_value=self.cfg.constant_mean[variable]
+                    )
+            if self.cfg.constant_std is not None:
+                for variable in [k for k in self.cfg.constant_std.keys()]:
+                    self.normalizer.update_std_with_constant(
+                        variable=variable, std_value=self.cfg.constant_std[variable]
+                    )
+
+            # save the normalizer into the run directory
             pickle.dump(
                 self.normalizer, (self.cfg.run_dir / "normalizer.pkl").open("wb")
             )

@@ -205,6 +205,24 @@ def _plot_loss_curves(losses: Tuple[np.ndarray, np.ndarray]) -> Tuple[Any, Any]:
     return f, ax
 
 
+def _plot_single_timeseries(preds: xr.Dataset) -> Tuple[Any, Any]:
+    f, ax = plt.subplots(figsize=(12, 4))
+    pixel = np.random.choice(preds.pixel.values)
+    if "horizon" in [c for c in preds.coords]:
+        preds = preds.drop("horizon")
+    preds.sel(pixel=pixel).to_dataframe().plot(ax=ax)
+    plt.legend()
+    ax.set_title(pixel)
+    return f, ax
+
+
+def save_timeseries(preds: xr.Dataset, cfg: Config, n: int = 1) -> None:
+    for _ in range(n):
+        f, ax = _plot_single_timeseries(preds)
+        pixel = str(ax.get_title())
+        f.savefig(cfg.run_dir / f"{pixel}_timeseries.png")
+
+
 def save_loss_curves(losses: Tuple[np.ndarray, np.ndarray], cfg: Config) -> None:
     f, ax = _plot_loss_curves(losses=losses)
     f.savefig(cfg.run_dir / "loss_curves.png")

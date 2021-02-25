@@ -44,6 +44,8 @@ class Config:
         "scheduler": None,
         "model": "lstm",
         "dropout": 0.4,
+        "constant_mean": None,
+        "constant_std": None,
     }
 
     def __init__(self, cfg_path: Path):
@@ -320,3 +322,11 @@ class Config:
     @property
     def dropout(self) -> str:
         return self.get_property_with_defaults("dropout")
+
+    @property
+    def constant_mean(self) -> Optional[Dict[str, float]]:
+        return self.get_property_with_defaults("constant_mean")
+
+    @property
+    def constant_std(self) -> Optional[Dict[str, float]]:
+        return self.get_property_with_defaults("constant_std")
