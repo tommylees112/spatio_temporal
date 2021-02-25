@@ -61,7 +61,7 @@ class TestModels:
         np.random.seed(1)
 
         hidden_size = 64
-        ds = pickle.load(Path("data/kenya.pkl").open("rb"))
+        ds = pickle.load(Path("data/kenya.pkl").open("rb")).isel(lat=slice(0, 1), lon=slice(0, 1))
 
         paths = [
             Path("tests/testconfigs/config.yml"),
@@ -69,6 +69,7 @@ class TestModels:
         ]
         for path in paths:
             cfg = Config(path)
+            cfg._cfg["static_inputs"] = "embedding"
             create_and_assign_temp_run_path_to_config(cfg, tmp_path)
 
             dl = PixelDataLoader(
@@ -94,11 +95,11 @@ class TestModels:
 
             optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
             loss_obj = F.mse_loss
-            before = model.forward(x)
+            before = model.forward(data)
             for data in tqdm(dl):
                 input, target = data["x_d"], data["y"]
                 optimizer.zero_grad()
-                yhat = model.forward(input)
+                yhat = model.forward(data)
                 #  shape = [batch_size, seq_length, forecast_horizon]
                 assert yhat["y_hat"].shape == (cfg.batch_size, 1, 1)
 

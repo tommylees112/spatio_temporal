@@ -64,7 +64,7 @@ def _stack_xarray(
     return stacked, samples
 
 
-@njit
+# @njit
 def validate_samples(
     x_d: List[np.ndarray],
     x_s: List[np.ndarray],

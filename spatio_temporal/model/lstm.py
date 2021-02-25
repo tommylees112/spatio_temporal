@@ -67,11 +67,13 @@ class LSTM(nn.Module):
                 - `c_n`: cell state at the last time step of the sequence of shape [batch size, 1, hidden size].
         """
         # input = [batch_size, seq_length, n_features]
-        x_d = data
+        x_d = data["x_d"]
 
-        # if 'x_s' in data:
-        #     x_s = data['x_s'].unsqueeze(0).repeat(x_d.shape[0], 1, 1)
-        #     # concatenate onto x_d
+        if 'x_s' in data:
+            x_s = data['x_s'].unsqueeze(0).repeat(x_d.shape[0], 1, 1)
+            # concatenate onto x_d
+            x_d = torch.cat([x_d, x_s], dim=-1)
+            assert False
 
         # Set initial states [1, batch_size, hidden_size]
         h0 = torch.zeros(self.num_layers, x_d.size(0), self.hidden_size).to(x_d.device)

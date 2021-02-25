@@ -58,13 +58,21 @@ class XarrayDataset(Dataset):
         self.device = self.cfg.device
         self.DEBUG = DEBUG
 
-        # TODO: allow static inputs
-        self.static_inputs = cfg.static_inputs
-
         # TODO: allow forecast variables
         self.forecast_variables = self.cfg.forecast_variables
 
         ds: xr.Dataset = stacked
+
+        # TODO: allow static inputs
+        # TODO: replace "x_s" with "x_one_hot"
+        self.static_inputs = cfg.static_inputs
+        if self.static_inputs == "embedding":
+            self.df_static = pd.DataFrame(
+                torch.nn.functional.one_hot(torch.arange(ds.sample.size)).numpy(),
+                columns=ds.sample.values,
+                index=ds.sample.values,
+            )
+            self.static_inputs = self.df_static.columns
 
         #  TODO: make normalizer optional (e.g. for Runoff data)
         #  TODO: normalize only specific variables, e.g. inputs not outputs
@@ -91,9 +99,13 @@ class XarrayDataset(Dataset):
             dts = pd.to_datetime(ds.time.values)
             sin_doy, cos_doy = encode_doys([d.dayofyear for d in dts])
             self.inputs = self.inputs + ["sin_doy", "cos_doy"]
-            sin_doy_xr = (xr.ones_like(ds[self.target]) * np.tile(sin_doy, len(sample.sample.values)).reshape(-1, len(sample.sample.values)))
+            sin_doy_xr = xr.ones_like(ds[self.target]) * np.tile(
+                sin_doy, len(sample.sample.values)
+            ).reshape(-1, len(sample.sample.values))
             sin_doy_xr = sin_doy_xr.rename("sin_doy")
-            cos_doy_xr = (xr.ones_like(ds[self.target]) * np.tile(cos_doy, len(sample.sample.values)).reshape(-1, len(sample.sample.values)))
+            cos_doy_xr = xr.ones_like(ds[self.target]) * np.tile(
+                cos_doy, len(sample.sample.values)
+            ).reshape(-1, len(sample.sample.values))
             cos_doy_xr = cos_doy_xr.rename("cos_doy")
             ds = xr.merge([ds, sin_doy_xr, cos_doy_xr])
 
@@ -185,7 +197,9 @@ class XarrayDataset(Dataset):
             #  TODO: deal with static inputs
             if self.static_inputs is not None:
                 # index = pixel; columns = variables
-                x_s = df_static.loc[pixel, self.static_inputs].values
+                x_s = self.df_static.loc[pixel, self.static_inputs].values
+                # TODO: check if error in shaping 
+                x_s = np.tile(x_s, y.size).reshape(y.size, x_s.size)
             else:
                 x_s = None
 
@@ -238,7 +252,7 @@ class XarrayDataset(Dataset):
         y = self.y[pixel][target_index].reshape(-1, 1)
 
         if self.static_inputs is not None:
-            x_s = torch.cat(self.x_s[pixel], dim=-1)
+            x_s = torch.cat((self.x_s[pixel],), dim=-1)
         else:
             x_s = torch.from_numpy(np.array([]))
 
