@@ -38,6 +38,7 @@ configs/
 runs/
 bin/
 notebooks/runs
+notebooks/drafts
 
 # data
 data/kenya.pkl
