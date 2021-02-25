@@ -32,8 +32,8 @@ class Memory:
         self.valid_losses = []
 
         # early stopping criteria
-        best_val_score = 1e6
-        batches_without_improvement = 0
+        self.best_val_score = 1e6
+        self.batches_without_improvement = 0
 
     def to_arrays(self):
         self.train_losses = np.array(self.train_losses)
@@ -52,7 +52,7 @@ class Trainer(BaseTrainer):
         self._allow_subsequent_nan_losses = _allow_subsequent_nan_losses
 
         # add early stopping
-        self.early_stopping = None  # cfg.early_stopping Optional[int] = None
+        self.early_stopping = cfg.early_stopping
 
         #  set random seeds
         self._set_seeds(self.cfg)
@@ -263,10 +263,45 @@ class Trainer(BaseTrainer):
         epoch_valid_loss = np.mean(valid_loss)
         return epoch_valid_loss
 
+    def _run_validation_epoch(self, epoch: int) -> Union[float, bool]:
+        stop_training: bool = False
+        
+        if self.early_stopping is not None:
+            epoch_valid_loss = self._validate_epoch(epoch)
+            stop_training = self.run_early_stopping(epoch_valid_loss)
+        else:
+            if epoch % self.cfg.validate_every_n == 0:
+                epoch_valid_loss = self._validate_epoch(epoch)
+            else:
+                epoch_valid_loss = np.nan
+        
+        return epoch_valid_loss, stop_training
+
+    def run_early_stopping(self, epoch_valid_loss: float) -> bool:
+        stop_training: bool = False
+        if epoch_valid_loss < self.memory.best_val_score:
+            self.memory.batches_without_improvement = 0
+            self.memory.best_val_score = epoch_valid_loss
+            self.memory.best_model_dict = self.model.state_dict()
+        else:
+            self.memory.batches_without_improvement += 1
+            print(self.memory.batches_without_improvement)
+
+            if self.memory.batches_without_improvement == self.early_stopping:
+                print("Early stopping!")
+                
+                # Load the best model dict 
+                self.model.load_state_dict(self.memory.best_model_dict)
+                # break the model loop
+                stop_training = True
+        
+        return stop_training
+
     def train_and_validate(self):
         # store losses:: self.memory
         self.initialise_memory()
 
+        stop_training: bool = False
         for epoch in range(1, self.cfg.n_epochs + 1):
             epoch_train_loss = self._train_one_epoch(epoch)
             # self.scheduler.step()
@@ -275,31 +310,17 @@ class Trainer(BaseTrainer):
             # Save epoch weights
             self._save_epoch_information(epoch)
 
-            # def wrap_validation_step()
-            if self.early_stopping is not None:
-                epoch_valid_loss = self._validate_epoch(epoch)
-
-                if epoch_valid_loss < self.memory.best_val_score:
-                    self.memory.batches_without_improvement = 0
-                    self.memory.best_val_score = epoch_valid_loss
-                    self.memory.best_model_dict = self.model.state_dict()
-                else:
-                    self.memory.batches_without_improvement += 1
-                    if self.memory.batches_without_improvement == self.early_stopping:
-                        print("Early stopping!")
-                        # Load the best model dict 
-                        self.model.load_state_dict(self.memory.best_model_dict)
-            else:
-                if epoch % self.cfg.validate_every_n == 0:
-                    epoch_valid_loss = self._validate_epoch(epoch)
-                else:
-                    epoch_valid_loss = np.nan
+            # def run_validation_epoch()
+            epoch_valid_loss, stop_training = self._run_validation_epoch(epoch)
 
             print(f"Train Loss: {epoch_train_loss:.2f}")
             print(f"Valid Loss: {epoch_valid_loss:.2f}")
 
             self.memory.train_losses.append(epoch_train_loss)
             self.memory.valid_losses.append(epoch_valid_loss)
+
+            if stop_training:
+                break
 
         self.memory.to_arrays()
         return self.memory.train_losses, self.memory.valid_losses
