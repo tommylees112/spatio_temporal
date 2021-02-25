@@ -4,8 +4,9 @@ import xarray as xr
 import torch.nn as nn
 from tqdm import tqdm
 from dataclasses import dataclass
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Dict
 import torch.optim as optim
+from torch import Tensor
 
 #  library imports
 from spatio_temporal.model.losses import RMSELoss
@@ -20,10 +21,19 @@ from spatio_temporal.training.train_utils import _to_device, get_model
 class Memory:
     train_losses: Optional[Union[List[float], np.ndarray]] = None
     valid_losses: Optional[Union[List[float], np.ndarray]] = None
-
+    
+    # early stopping criteria
+    best_val_score: Optional[float] = None
+    batches_without_improvement: Optional[int] = None
+    best_model_dict: Optional[Dict[str, Tensor]] = None
+    
     def __post_init__(self):
         self.train_losses = []
         self.valid_losses = []
+
+        # early stopping criteria
+        best_val_score = 1e6
+        batches_without_improvement = 0
 
     def to_arrays(self):
         self.train_losses = np.array(self.train_losses)
@@ -40,6 +50,9 @@ class Trainer(BaseTrainer):
         self._create_folder_structure()
         self.device = self.cfg.device
         self._allow_subsequent_nan_losses = _allow_subsequent_nan_losses
+
+        # add early stopping
+        self.early_stopping = None  # cfg.early_stopping Optional[int] = None
 
         #  set random seeds
         self._set_seeds(self.cfg)
@@ -262,10 +275,25 @@ class Trainer(BaseTrainer):
             # Save epoch weights
             self._save_epoch_information(epoch)
 
-            if epoch % self.cfg.validate_every_n == 0:
+            # def wrap_validation_step()
+            if self.early_stopping is not None:
                 epoch_valid_loss = self._validate_epoch(epoch)
+
+                if epoch_valid_loss < self.memory.best_val_score:
+                    self.memory.batches_without_improvement = 0
+                    self.memory.best_val_score = epoch_valid_loss
+                    self.memory.best_model_dict = self.model.state_dict()
+                else:
+                    self.memory.batches_without_improvement += 1
+                    if self.memory.batches_without_improvement == self.early_stopping:
+                        print("Early stopping!")
+                        # Load the best model dict 
+                        self.model.load_state_dict(self.memory.best_model_dict)
             else:
-                epoch_valid_loss = np.nan
+                if epoch % self.cfg.validate_every_n == 0:
+                    epoch_valid_loss = self._validate_epoch(epoch)
+                else:
+                    epoch_valid_loss = np.nan
 
             print(f"Train Loss: {epoch_train_loss:.2f}")
             print(f"Valid Loss: {epoch_valid_loss:.2f}")

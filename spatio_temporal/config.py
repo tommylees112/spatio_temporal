@@ -46,6 +46,7 @@ class Config:
         "dropout": 0.4,
         "constant_mean": None,
         "constant_std": None,
+        "early_stopping": None,
     }
 
     def __init__(self, cfg_path: Path):
@@ -330,3 +331,7 @@ class Config:
     @property
     def constant_std(self) -> Optional[Dict[str, float]]:
         return self.get_property_with_defaults("constant_std")
+
+    @property
+    def early_stopping(self) -> Optional[int]:
+        return self.get_property_with_defaults("early_stopping")
