@@ -285,8 +285,6 @@ class Trainer(BaseTrainer):
             self.memory.best_model_dict = self.model.state_dict()
         else:
             self.memory.batches_without_improvement += 1
-            print(self.memory.batches_without_improvement)
-
             if self.memory.batches_without_improvement == self.early_stopping:
                 print("Early stopping!")
 
