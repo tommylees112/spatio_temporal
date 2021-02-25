@@ -168,3 +168,34 @@ def train_test_split(ds: xr.Dataset, cfg: Config, subset: str) -> xr.Dataset:
     ], f"{subset} Period returns NO samples {ds}"
 
     return ds
+
+
+def encode_doys(
+    doys: List[int], start_doy: int = 1, end_doy: int = 366
+) -> Tuple[List[float], List[float]]:
+    """
+    encode (list of) date(s)/doy(s) to cyclic sine/cosine values
+    int is assumed to represent a day of year
+    
+    it is possible to change the encoding period by passing `start_doy` or
+    `end_doy` to the function
+    (e.g. if you want to have cyclic values for the vegetation period only)
+    returns two lists, one with sine-encoded and one with cosine-encoded doys
+    """
+    if not isinstance(doys, list):
+        doys = [doys]
+
+    doys_sin = []
+    doys_cos = []
+    for doy in doys:
+        if doy > 366 or doy < 1:
+            raise ValueError(f'Invalid date "{doy}"')
+
+        doys_sin.append(
+            np.sin(2 * np.pi * (doy - start_doy) / (end_doy - start_doy + 1))
+        )
+        doys_cos.append(
+            np.cos(2 * np.pi * (doy - start_doy) / (end_doy - start_doy + 1))
+        )
+
+    return doys_sin, doys_cos

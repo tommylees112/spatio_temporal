@@ -47,6 +47,7 @@ class Config:
         "constant_mean": None,
         "constant_std": None,
         "early_stopping": None,
+        "encode_doys": False,
     }
 
     def __init__(self, cfg_path: Path):
@@ -183,8 +184,8 @@ class Config:
     def _read_list_of_dicts_into_one_dict(
         read_list: Optional[List[Dict[str, float]]]
     ) -> Dict[str, Any]:
-        assert False, "self.constant_mean self.constant_std don't currently work!"
         if read_list is not None:
+            assert False, "self.constant_mean self.constant_std don't currently work!"
             return_dict = read_list[0]
             for dict_ in read_list[1:]:
                 key = list(dict_.keys())[0]
@@ -360,3 +361,7 @@ class Config:
     @property
     def early_stopping(self) -> Optional[int]:
         return self.get_property_with_defaults("early_stopping")
+
+    @property
+    def encode_doys(self) -> bool:
+        return self.get_property_with_defaults("encode_doys")

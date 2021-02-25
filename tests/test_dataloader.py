@@ -54,6 +54,7 @@ class TestDataLoader:
     def test_correct_data_returned(self, tmp_path):
         ds = _make_dataset().isel(lat=slice(0, 2), lon=slice(0, 1))
         cfg = Config(Path("tests/testconfigs/test_config.yml"))
+        cfg._cfg["encode_doys"] = True
         create_and_assign_temp_run_path_to_config(cfg, tmp_path)
         dl = PixelDataLoader(ds, cfg=cfg, mode="train", DEBUG=True)
         data = dl.__iter__().__next__()

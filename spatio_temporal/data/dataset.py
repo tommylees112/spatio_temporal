@@ -12,6 +12,7 @@ from spatio_temporal.data.data_utils import (
     _check_no_missing_times_in_time_series,
     _stack_xarray,
     validate_samples,
+    encode_doys,
 )
 from spatio_temporal.data.normalizer import Normalizer
 from spatio_temporal.config import Config
@@ -81,9 +82,20 @@ class XarrayDataset(Dataset):
             assert (
                 self.horizon > 0
             ), "Cannot include autoregressive information if simulating current timestep. Use a horizon of 1 instead."
-            auto = stacked[self.target].rename("autoregressive")
+            auto = ds[self.target].rename("autoregressive")
             self.inputs = self.inputs + ["autoregressive"]
             ds = xr.merge([ds, auto])
+
+        # add doy encoding
+        if cfg.encode_doys:
+            dts = pd.to_datetime(ds.time.values)
+            sin_doy, cos_doy = encode_doys([d.dayofyear for d in dts])
+            self.inputs = self.inputs + ["sin_doy", "cos_doy"]
+            sin_doy_xr = (xr.ones_like(ds[self.target]) * np.tile(sin_doy, len(sample.sample.values)).reshape(-1, len(sample.sample.values)))
+            sin_doy_xr = sin_doy_xr.rename("sin_doy")
+            cos_doy_xr = (xr.ones_like(ds[self.target]) * np.tile(cos_doy, len(sample.sample.values)).reshape(-1, len(sample.sample.values)))
+            cos_doy_xr = cos_doy_xr.rename("cos_doy")
+            ds = xr.merge([ds, sin_doy_xr, cos_doy_xr])
 
         self.input_size = len(self.inputs)
 
