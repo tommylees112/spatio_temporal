@@ -183,6 +183,7 @@ class Config:
     def _read_list_of_dicts_into_one_dict(
         read_list: Optional[List[Dict[str, float]]]
     ) -> Dict[str, Any]:
+        assert False, "self.constant_mean self.constant_std don't currently work!"
         if read_list is not None:
             return_dict = read_list[0]
             for dict_ in read_list[1:]:
