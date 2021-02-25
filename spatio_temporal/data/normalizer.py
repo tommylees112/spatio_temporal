@@ -55,6 +55,9 @@ class Normalizer:
         # zero mean, unit variance
         return (ds - self.mean_) / self.std_
 
+    ########################################################
+    ########### RECOVERING UNDERLYING DATA #################
+    ########################################################
     def inverse_transform(self, ds: xr.Dataset) -> xr.Dataset:
         return (ds * self.std_) + self.mean_
 

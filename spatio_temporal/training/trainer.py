@@ -21,12 +21,12 @@ from spatio_temporal.training.train_utils import _to_device, get_model
 class Memory:
     train_losses: Optional[Union[List[float], np.ndarray]] = None
     valid_losses: Optional[Union[List[float], np.ndarray]] = None
-    
+
     # early stopping criteria
     best_val_score: Optional[float] = None
     batches_without_improvement: Optional[int] = None
     best_model_dict: Optional[Dict[str, Tensor]] = None
-    
+
     def __post_init__(self):
         self.train_losses = []
         self.valid_losses = []
@@ -51,7 +51,7 @@ class Trainer(BaseTrainer):
         self.device = self.cfg.device
         self._allow_subsequent_nan_losses = _allow_subsequent_nan_losses
 
-        # add early stopping
+        #  add early stopping
         self.early_stopping = cfg.early_stopping
 
         #  set random seeds
@@ -265,19 +265,19 @@ class Trainer(BaseTrainer):
 
     def _run_validation_epoch(self, epoch: int) -> Union[float, bool]:
         stop_training: bool = False
-        
+
         if self.early_stopping is not None:
             epoch_valid_loss = self._validate_epoch(epoch)
-            stop_training = self.run_early_stopping(epoch_valid_loss)
+            stop_training = self.run_early_stopping_check(epoch_valid_loss, epoch)
         else:
             if epoch % self.cfg.validate_every_n == 0:
                 epoch_valid_loss = self._validate_epoch(epoch)
             else:
                 epoch_valid_loss = np.nan
-        
+
         return epoch_valid_loss, stop_training
 
-    def run_early_stopping(self, epoch_valid_loss: float) -> bool:
+    def run_early_stopping_check(self, epoch_valid_loss: float, epoch: int) -> bool:
         stop_training: bool = False
         if epoch_valid_loss < self.memory.best_val_score:
             self.memory.batches_without_improvement = 0
@@ -289,12 +289,16 @@ class Trainer(BaseTrainer):
 
             if self.memory.batches_without_improvement == self.early_stopping:
                 print("Early stopping!")
-                
-                # Load the best model dict 
+
+                #  Load the best model dict
                 self.model.load_state_dict(self.memory.best_model_dict)
+                #  save the best model to disk
+                best_epoch = epoch - self.memory.batches_without_improvement
+                model_str = f"BEST_model_epoch{best_epoch:03d}.pt"
+                self._save_model_information(model_str)
                 # break the model loop
                 stop_training = True
-        
+
         return stop_training
 
     def train_and_validate(self):
@@ -304,13 +308,14 @@ class Trainer(BaseTrainer):
         stop_training: bool = False
         for epoch in range(1, self.cfg.n_epochs + 1):
             epoch_train_loss = self._train_one_epoch(epoch)
+            #  if cfg.scheduler == "step":
             # self.scheduler.step()
             # self._reset_scheduler()
 
             # Save epoch weights
             self._save_epoch_information(epoch)
 
-            # def run_validation_epoch()
+            #  def run_validation_epoch()
             epoch_valid_loss, stop_training = self._run_validation_epoch(epoch)
 
             print(f"Train Loss: {epoch_train_loss:.2f}")
@@ -323,4 +328,5 @@ class Trainer(BaseTrainer):
                 break
 
         self.memory.to_arrays()
+
         return self.memory.train_losses, self.memory.valid_losses

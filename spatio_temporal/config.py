@@ -179,13 +179,27 @@ class Config:
                 cfg[key] = pd.to_datetime(val, format="%d/%m/%Y")
         return cfg
 
-    @property
-    def data_dir(self) -> Path:
-        return self.get_mandatory_attrs("data_dir")
+    @staticmethod
+    def _read_list_of_dicts_into_one_dict(
+        read_list: Optional[List[Dict[str, float]]]
+    ) -> Dict[str, Any]:
+        if read_list is not None:
+            return_dict = read_list[0]
+            for dict_ in read_list[1:]:
+                key = list(dict_.keys())[0]
+                value = list(dict_.values())[0]
+                return_dict[key] = value
+        else:
+            return_dict = None
+        return return_dict
 
     #  --------------------------------------------------
     #  - Mandatory Properties ---------------------------
     #  --------------------------------------------------
+    @property
+    def data_dir(self) -> Path:
+        return self.get_mandatory_attrs("data_dir")
+
     @property
     def experiment_name(self) -> str:
         return self.get_mandatory_attrs("experiment_name")
@@ -326,11 +340,21 @@ class Config:
 
     @property
     def constant_mean(self) -> Optional[Dict[str, float]]:
-        return self.get_property_with_defaults("constant_mean")
+        read_list: Optional[List[Dict[str, float]]] = self.get_property_with_defaults(
+            "constant_mean"
+        )
+        #  TODO: better way of getting ruamel.Yaml to read a dict
+        return_dict = self._read_list_of_dicts_into_one_dict(read_list)
+        return return_dict
 
     @property
     def constant_std(self) -> Optional[Dict[str, float]]:
-        return self.get_property_with_defaults("constant_std")
+        read_list: Optional[List[Dict[str, float]]] = self.get_property_with_defaults(
+            "constant_std"
+        )
+        #  TODO: better way of getting ruamel.Yaml to read a dict
+        return_dict = self._read_list_of_dicts_into_one_dict(read_list)
+        return return_dict
 
     @property
     def early_stopping(self) -> Optional[int]:
