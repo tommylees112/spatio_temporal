@@ -27,7 +27,8 @@ class TestModels:
         dl = PixelDataLoader(ds, cfg=cfg, mode="train", DEBUG=True)
 
         model = LinearRegression(
-            input_size=(dl.input_size + dl.static_input_size)* cfg.seq_length,
+            input_size=(dl.input_size + dl.static_input_size + dl.forecast_input_size)
+            * cfg.seq_length,
             output_size=dl.output_size,
             forecast_horizon=dl.horizon,
         )
@@ -44,7 +45,7 @@ class TestModels:
         dl = PixelDataLoader(ds, cfg=cfg, mode="train")
 
         model = LSTM(
-            input_size=dl.input_size + dl.static_input_size,
+            input_size=dl.input_size + dl.static_input_size + dl.forecast_input_size,
             hidden_size=cfg.hidden_size,
             output_size=dl.output_size,
             forecast_horizon=dl.horizon,
@@ -87,7 +88,9 @@ class TestModels:
 
             model = (
                 LSTM(
-                    input_size=dl.input_size + dl.static_input_size,
+                    input_size=dl.input_size
+                    + dl.static_input_size
+                    + dl.forecast_input_size,
                     hidden_size=hidden_size,
                     output_size=dl.output_size,
                     forecast_horizon=dl.horizon,

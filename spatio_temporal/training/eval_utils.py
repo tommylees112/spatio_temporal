@@ -186,7 +186,7 @@ def _plot_scatter(preds: xr.Dataset) -> Tuple[Any, Any]:
     axis = np.concatenate([np.array(ax.get_xlim()), np.array(ax.get_ylim())])
     ax.set_xlim(axis.min(), axis.max())
     ax.set_ylim(axis.min(), axis.max())
-    return f, ax 
+    return f, ax
 
 
 def scatter_plot(

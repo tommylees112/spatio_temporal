@@ -73,6 +73,15 @@ class BiLSTM(nn.Module):
             #   [batch_size, seq_length, all_features]
             x_d = torch.cat([x_d, x_s], dim=-1)
 
+        if np.product(data["x_f"].size()) > 0:
+            # padding zero: https://stackoverflow.com/a/53126241/9940782
+            #  NOTE: all assuming that batch_first !
+            x_f = data["x_f"]
+            new_dims = x_f.shape[1]
+            target = torch.zeros(x_d.shape[0], x_f.shape[1], x_d.shape[-1])
+            target[:, : x_d.shape[1], :] = x_d
+            x_d = torch.cat([target, x_f], dim=-1)
+
         # Set initial states [1, batch_size, hidden_size]
         h0 = torch.zeros(self.num_layers * 2, x_d.size(0), self.hidden_size).to(
             x_d.device
