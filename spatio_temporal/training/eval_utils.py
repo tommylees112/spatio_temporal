@@ -175,10 +175,7 @@ def data_in_memory_to_xarray(
     return ds
 
 
-def scatter_plot(
-    preds: xr.Dataset, cfg: Config, model: str = "nn", horizon: int = 0
-) -> None:
-    preds = preds.drop("horizon")
+def _plot_scatter(preds: xr.Dataset) -> Tuple[Any, Any]:
     f, ax = plt.subplots()
     ax.scatter(
         preds.obs.values.flatten(), preds.sim.values.flatten(), marker="x", alpha=0.1
@@ -189,6 +186,14 @@ def scatter_plot(
     axis = np.concatenate([np.array(ax.get_xlim()), np.array(ax.get_ylim())])
     ax.set_xlim(axis.min(), axis.max())
     ax.set_ylim(axis.min(), axis.max())
+    return f, ax 
+
+
+def scatter_plot(
+    preds: xr.Dataset, cfg: Config, model: str = "nn", horizon: int = 0
+) -> None:
+    preds = preds.drop("horizon")
+    f, ax = _plot_scatter(preds)
     ax.set_title(f"{model} Observed vs. Predicted [FH {horizon}]")
 
     f.savefig(cfg.run_dir / f"scatter_{model}_FH{horizon}.png")
