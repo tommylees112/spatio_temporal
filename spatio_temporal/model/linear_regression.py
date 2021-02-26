@@ -53,7 +53,9 @@ class LinearRegression(nn.Module):
             #  NOTE: all assuming that batch_first !
             x_f = data["x_f"]
             new_dims = x_f.shape[1]
-            target = torch.zeros(x_d.shape[0], x_f.shape[1], x_d.shape[-1], device=x_d.device)
+            target = torch.zeros(
+                x_d.shape[0], x_f.shape[1], x_d.shape[-1], device=x_d.device
+            )
             target[:, : x_d.shape[1], :] = x_d
             x_d = torch.cat([target, x_f], dim=-1)
 
