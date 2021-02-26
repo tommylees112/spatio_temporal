@@ -27,13 +27,12 @@ class TestModels:
         dl = PixelDataLoader(ds, cfg=cfg, mode="train", DEBUG=True)
 
         model = LinearRegression(
-            input_size=dl.input_size * cfg.seq_length,
+            input_size=(dl.input_size + dl.static_input_size)* cfg.seq_length,
             output_size=dl.output_size,
             forecast_horizon=dl.horizon,
         )
         data = dl.__iter__().__next__()
-        x, _ = data["x_d"], data["y"]
-        y_hat = model(x)
+        y_hat = model(data)
 
         assert isinstance(y_hat, dict)
         assert y_hat["y_hat"].shape == (1, 1)
@@ -45,14 +44,13 @@ class TestModels:
         dl = PixelDataLoader(ds, cfg=cfg, mode="train")
 
         model = LSTM(
-            input_size=dl.input_size,
+            input_size=dl.input_size + dl.static_input_size,
             hidden_size=cfg.hidden_size,
             output_size=dl.output_size,
             forecast_horizon=dl.horizon,
         )
         data = dl.__iter__().__next__()
-        x, y = data["x_d"], data["y"]
-        y_hat = model(x)
+        y_hat = model(data)
 
         assert all(np.isin(["h_n", "c_n", "y_hat"], [k for k in y_hat.keys()]))
 
@@ -61,7 +59,9 @@ class TestModels:
         np.random.seed(1)
 
         hidden_size = 64
-        ds = pickle.load(Path("data/kenya.pkl").open("rb"))
+        ds = pickle.load(Path("data/kenya.pkl").open("rb")).isel(
+            lat=slice(0, 2), lon=slice(0, 4)
+        )
 
         paths = [
             Path("tests/testconfigs/config.yml"),
@@ -69,11 +69,15 @@ class TestModels:
         ]
         for path in paths:
             cfg = Config(path)
+            cfg._cfg["static_inputs"] = "embedding"
             create_and_assign_temp_run_path_to_config(cfg, tmp_path)
 
             dl = PixelDataLoader(
                 ds, mode="train", cfg=cfg, num_workers=1, batch_size=cfg.batch_size,
             )
+
+            data1 = dl.dataset.__getitem__(0)
+            data1["x_s"]
 
             data = dl.__iter__().__next__()
             x, y = data["x_d"], data["y"]
@@ -83,7 +87,7 @@ class TestModels:
 
             model = (
                 LSTM(
-                    input_size=dl.input_size,
+                    input_size=dl.input_size + dl.static_input_size,
                     hidden_size=hidden_size,
                     output_size=dl.output_size,
                     forecast_horizon=dl.horizon,
@@ -94,11 +98,11 @@ class TestModels:
 
             optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
             loss_obj = F.mse_loss
-            before = model.forward(x)
+            before = model.forward(data)
             for data in tqdm(dl):
                 input, target = data["x_d"], data["y"]
                 optimizer.zero_grad()
-                yhat = model.forward(input)
+                yhat = model.forward(data)
                 #  shape = [batch_size, seq_length, forecast_horizon]
                 assert yhat["y_hat"].shape == (cfg.batch_size, 1, 1)
 
@@ -108,7 +112,7 @@ class TestModels:
                 optimizer.step()
                 break
 
-            after = model.forward(x)
+            after = model.forward(data)
 
             loss_bf = loss_obj(before["y_hat"], y)
             loss_af = loss_obj(after["y_hat"], y)

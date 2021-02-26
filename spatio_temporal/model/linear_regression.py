@@ -35,7 +35,18 @@ class LinearRegression(nn.Module):
         )
 
     def forward(self, data):
-        x_d = data
+        # input = [batch_size, seq_length, n_features]
+        x_d = data["x_d"]
+
+        if np.product(data["x_s"].size()) > 0:
+            #  IN  [batch_size, n_static_features]
+            # OUT [batch_size, seq_length, n_static_features]
+            #  repeat for each seq_length and append new features to n_features
+            x_s = data["x_s"].unsqueeze(1).repeat(1, x_d.shape[1], 1)
+
+            #  concatenate onto x_d
+            #   [batch_size, seq_length, all_features]
+            x_d = torch.cat([x_d, x_s], dim=-1)
 
         #  flatten all inputs
         #  [batch_size, seq_length, n_features] -> [batch_size, self.input_size]

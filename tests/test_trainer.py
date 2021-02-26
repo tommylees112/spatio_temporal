@@ -48,7 +48,8 @@ class TestTrainer:
         cfg.run_dir = tmp_path
         trainer = Trainer(cfg, ds)
 
-        train_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
+        input_variables = [] if cfg.input_variables is None else cfg.input_variables
+        train_ds = ds[input_variables + [cfg.target_variable]].sel(
             time=slice(cfg.train_start_date, cfg.train_end_date)
         )
 

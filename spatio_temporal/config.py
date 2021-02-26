@@ -10,7 +10,6 @@ class Config:
     _mandatory_keys: List[str] = [
         "batch_size",
         "data_dir",
-        "input_variables",
         "target_variable",
         "n_epochs",
         "hidden_size",
@@ -48,6 +47,7 @@ class Config:
         "constant_std": None,
         "early_stopping": None,
         "encode_doys": False,
+        "input_variables": None,
     }
 
     def __init__(self, cfg_path: Path):
@@ -211,10 +211,6 @@ class Config:
         return self.get_mandatory_attrs("batch_size")
 
     @property
-    def input_variables(self) -> List[str]:
-        return self.get_mandatory_attrs("input_variables")
-
-    @property
     def n_epochs(self) -> int:
         return self.get_mandatory_attrs("n_epochs")
 
@@ -288,6 +284,10 @@ class Config:
     #  --------------------------------------------------
     #  - Properties with defaults -----------------------
     #  --------------------------------------------------
+    @property
+    def input_variables(self) -> List[str]:
+        return self.get_property_with_defaults("input_variables")
+
     @property
     def autoregressive(self) -> bool:
         return self.get_property_with_defaults("autoregressive")
