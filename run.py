@@ -12,7 +12,11 @@ from tests.utils import (
     _test_sklearn_model,
     get_pollution_data_beijing,
 )
-from spatio_temporal.training.eval_utils import save_loss_curves, save_losses
+from spatio_temporal.training.eval_utils import (
+    save_loss_curves,
+    save_losses,
+    save_timeseries,
+)
 
 
 def _get_args() -> dict:
@@ -86,7 +90,8 @@ if __name__ == "__main__":
         save_losses(losses, cfg)
 
         # run test after training
-        tester.run_test()
+        preds = tester.run_test()
+        save_timeseries(preds, cfg=cfg, n=2)
 
     elif mode == "evaluate":
         # RUN TEST !
