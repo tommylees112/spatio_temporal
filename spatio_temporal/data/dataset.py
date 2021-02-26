@@ -8,6 +8,7 @@ from tqdm import tqdm
 from typing import List, Tuple, Optional, Dict
 from torch.utils.data import Dataset
 from torch import Tensor
+from torch.nn.utils.rnn import pad_sequence
 from spatio_temporal.data.data_utils import (
     _check_no_missing_times_in_time_series,
     _stack_xarray,
@@ -53,13 +54,18 @@ class XarrayDataset(Dataset):
         self.sample: xr.Dataset = sample
         self.batch_dim: str = "sample"
         self.seq_length: int = self.cfg.seq_length
-        self.inputs: Optional[List[str]] = self.cfg.input_variables if self.cfg.input_variables is not None else []
+        self.inputs: Optional[
+            List[str]
+        ] = self.cfg.input_variables if self.cfg.input_variables is not None else []
         self.target: str = self.cfg.target_variable
         self.device = self.cfg.device
         self.DEBUG = DEBUG
 
         # TODO: allow forecast variables
         self.forecast_variables = self.cfg.forecast_variables
+        assert (
+            self.cfg.target_variable not in self.cfg.forecast_variables
+        ), "Cannot include target as a forecast variable (leakage)"
 
         ds: xr.Dataset = stacked
 
@@ -76,7 +82,7 @@ class XarrayDataset(Dataset):
 
         #  TODO: make normalizer optional (e.g. for Runoff data)
         #  TODO: normalize only specific variables, e.g. inputs not outputs
-        ds = self.run_normalisation(ds=ds, normalizer=normalizer)
+        ds = self.run_normalization(ds=ds, normalizer=normalizer)
         if self.DEBUG:
             # save the stacked dataset to memory to check dataloading
             self.ds = ds
@@ -109,9 +115,14 @@ class XarrayDataset(Dataset):
             cos_doy_xr = cos_doy_xr.rename("cos_doy")
             ds = xr.merge([ds, sin_doy_xr, cos_doy_xr])
 
+        #  ---- DEFINE INPUT SIZES ----
+        # (used to create the models later)
         self.input_size = len(self.inputs)
         self.static_input_size = (
             len(self.static_inputs) if self.static_inputs is not None else 0
+        )
+        self.forecast_input_size = (
+            len(self.forecast_variables) if self.forecast_variables is not None else 0
         )
 
         # init dictionaries to store the RAW pixel timeseries
@@ -119,13 +130,14 @@ class XarrayDataset(Dataset):
         self.y: Dict[str, np.ndarray] = {}
         self.times: Dict[str, Optional[np.ndarray]] = {}
         self.x_s: Dict[str, Optional[np.ndarray]] = {}
+        self.x_f: Dict[str, Optional[np.ndarray]] = {}
 
         # 1. Check for missing data
         # 2. Store int -> data index
         # 3. Store y, x_d, x_s
         self.create_lookup_table(ds)
 
-    def run_normalisation(
+    def run_normalization(
         self,
         ds,
         collapse_dims: List[str] = ["time"],
@@ -168,11 +180,14 @@ class XarrayDataset(Dataset):
         y: np.ndarray,
         times: Optional[np.ndarray] = None,
         x_s: Optional[np.ndarray] = None,
+        x_f: Optional[np.ndarray] = None,
     ):
         self.x_d[pixel] = torch.from_numpy(x_d.astype(np.float32))
         self.y[pixel] = torch.from_numpy(y.astype(np.float32))
         if self.static_inputs is not None:
             self.x_s[pixel] = torch.from_numpy(x_s.astype(np.float32))
+        if self.forecast_variables is not None:
+            self.x_f[pixel] = torch.from_numpy(x_f.astype(np.float32))
 
         # store metadata
         if times is not None:
@@ -193,7 +208,11 @@ class XarrayDataset(Dataset):
             times = df_native.index
 
             # TODO: Include forecasted variables into dynamic
-            # self.forecast_variables
+            if self.forecast_variables is not None:
+                x_f = df_native[self.forecast_variables].values
+            else:
+                x_f = None
+
             x_d = df_native[self.inputs].values
             y = df_native[self.target].values
 
@@ -211,6 +230,7 @@ class XarrayDataset(Dataset):
                 x_d=x_d,
                 x_s=x_s,
                 y=y,
+                x_f=x_f,
                 seq_length=self.seq_length,
                 forecast_horizon=self.horizon,
                 mode=self.mode,
@@ -222,7 +242,7 @@ class XarrayDataset(Dataset):
 
             # STORE DATA if basin has at least ONE valid sample
             if valid_samples.size > 0:
-                self.store_data(pixel, x_d=x_d, y=y, x_s=x_s, times=times)
+                self.store_data(pixel, x_d=x_d, y=y, x_s=x_s, x_f=x_f, times=times)
             else:
                 pixels_without_samples.append(pixel)
 
@@ -251,6 +271,13 @@ class XarrayDataset(Dataset):
         if self.DEBUG:
             assert x_d.shape[0] == self.cfg.seq_length
 
+        if self.forecast_variables is not None:
+            #  up to and including the target time
+            x_f = self.x_f[pixel][start_input_idx : target_index + 1]
+            assert x_f.shape[0] == self.cfg.seq_length + self.cfg.horizon
+        else:
+            x_f = torch.from_numpy(np.array([]))
+
         #  TARGET DATA
         y = self.y[pixel][target_index].reshape(-1, 1)
 
@@ -276,5 +303,6 @@ class XarrayDataset(Dataset):
         data["x_d"] = x_d
         data["y"] = y
         data["x_s"] = x_s
+        data["x_f"] = x_f
 
         return data

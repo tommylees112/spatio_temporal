@@ -68,6 +68,7 @@ def _stack_xarray(
 def validate_samples(
     x_d: List[np.ndarray],
     x_s: List[np.ndarray],
+    x_f: List[np.ndarray],
     y: List[np.ndarray],
     seq_length: int,
     forecast_horizon: int,
@@ -120,6 +121,16 @@ def validate_samples(
                 flag[current_index] = 0
                 continue
 
+        # 6. any NaN in the forecast data
+        #  NOTE: indexing here needs to be the same as in dataloader.__getitem__
+        if x_f is not None:
+            start_input_idx = end_input_idx_plus_1 - seq_length
+            _x_d = x_d[start_input_idx : target_index + 1]
+
+            if np.any(np.isnan(_x_d)):
+                flag[current_index] = 0
+                continue
+
     return flag
 
 
@@ -150,15 +161,15 @@ def load_all_data_from_dl_into_memory(dl: Any) -> Tuple[np.ndarray, ...]:
 def train_test_split(ds: xr.Dataset, cfg: Config, subset: str) -> xr.Dataset:
     input_variables = [] if cfg.input_variables is None else cfg.input_variables
     if subset == "train":
-        ds = ds[input_variables + [cfg.target_variable]].sel(
+        ds = ds[input_variables + [cfg.target_variable] + cfg.forecast_variables].sel(
             time=slice(cfg.train_start_date, cfg.train_end_date)
         )
     elif subset == "validation":
-        ds = ds[input_variables + [cfg.target_variable]].sel(
+        ds = ds[input_variables + [cfg.target_variable] + cfg.forecast_variables].sel(
             time=slice(cfg.validation_start_date, cfg.validation_end_date)
         )
     elif subset == "test":
-        ds = ds[input_variables + [cfg.target_variable]].sel(
+        ds = ds[input_variables + [cfg.target_variable] + cfg.forecast_variables].sel(
             time=slice(cfg.test_start_date, cfg.test_end_date)
         )
     else:

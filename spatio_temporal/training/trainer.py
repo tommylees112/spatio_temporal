@@ -64,6 +64,7 @@ class Trainer(BaseTrainer):
         self.initialise_data(ds)
         self.input_size = self.train_dl.input_size
         self.static_input_size = self.train_dl.static_input_size
+        self.forecast_input_size = self.train_dl.forecast_input_size
         self.output_size = self.train_dl.output_size
 
         # initialise normalizer
@@ -139,7 +140,9 @@ class Trainer(BaseTrainer):
         #  TODO: def get_model from lookup: Dict[str, Model]
         self.model = get_model(
             cfg=self.cfg,
-            input_size=self.input_size + self.static_input_size,
+            input_size=self.input_size
+            + self.static_input_size
+            + self.forecast_input_size,
             output_size=self.output_size,
         )
 
