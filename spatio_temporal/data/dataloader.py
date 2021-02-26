@@ -37,6 +37,7 @@ class PixelDataLoader(DataLoader):
         super().__init__(dataset, **kwargs)
 
         self.input_size = dataset.input_size
+        self.static_input_size = dataset.static_input_size
         self.output_size = dataset.output_size
         self.mode = mode
         self.normalizer = dataset.normalizer

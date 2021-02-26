@@ -25,6 +25,7 @@ class Tester:
         # load test dataloader:: self.test_dl
         self.initialise_data(ds)
         self.input_size = self.test_dl.input_size
+        self.static_input_size = self.test_dl.static_input_size
         self.output_size = self.test_dl.output_size
 
         # load model and model weights:: self.model
@@ -52,7 +53,9 @@ class Tester:
     def load_model(self):
         #  TODO: def get_model from lookup: Dict[str, Model]
         self.model = get_model(
-            cfg=self.cfg, input_size=self.input_size, output_size=self.output_size
+            cfg=self.cfg,
+            input_size=self.input_size + self.static_input_size,
+            output_size=self.output_size,
         )
 
     @staticmethod
@@ -110,7 +113,7 @@ class Tester:
                 data = _to_device(data, self.device)
 
                 x, y = data["x_d"], data["y"]
-                y_hat = self.model(x)
+                y_hat = self.model(data)
 
                 sim = y_hat["y_hat"].detach().cpu().numpy()
                 obs = y.detach().cpu().numpy()

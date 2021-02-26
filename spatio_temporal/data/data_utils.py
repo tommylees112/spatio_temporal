@@ -64,7 +64,7 @@ def _stack_xarray(
     return stacked, samples
 
 
-@njit
+# @njit
 def validate_samples(
     x_d: List[np.ndarray],
     x_s: List[np.ndarray],
@@ -115,7 +115,7 @@ def validate_samples(
 
         # 4. any NaN in the static features makes the target_index invalid
         if x_s is not None:
-            _x_s = x_s[current_index]
+            _x_s = x_s
             if np.any(np.isnan(_x_s)):
                 flag[current_index] = 0
                 continue
@@ -148,16 +148,17 @@ def load_all_data_from_dl_into_memory(dl: Any) -> Tuple[np.ndarray, ...]:
 
 
 def train_test_split(ds: xr.Dataset, cfg: Config, subset: str) -> xr.Dataset:
+    input_variables = [] if cfg.input_variables is None else cfg.input_variables
     if subset == "train":
-        ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
+        ds = ds[input_variables + [cfg.target_variable]].sel(
             time=slice(cfg.train_start_date, cfg.train_end_date)
         )
     elif subset == "validation":
-        ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
+        ds = ds[input_variables + [cfg.target_variable]].sel(
             time=slice(cfg.validation_start_date, cfg.validation_end_date)
         )
     elif subset == "test":
-        ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
+        ds = ds[input_variables + [cfg.target_variable]].sel(
             time=slice(cfg.test_start_date, cfg.test_end_date)
         )
     else:
