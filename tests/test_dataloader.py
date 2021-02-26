@@ -230,7 +230,7 @@ class TestDataLoader:
     def test_1D_data(self, tmp_path):
         # convert pandas to xarray object
         ds = load_test_jena_data_as_dataset()
-        cfg = Config(Path("tests/testconfigs/test_1d_config.yml"))
+        cfg = Config(Path("tests/testconfigs/test_1d_config_horizon.yml"))
         create_and_assign_temp_run_path_to_config(cfg, tmp_path)
 
         dl = PixelDataLoader(
@@ -283,7 +283,8 @@ class TestDataLoader:
             create_and_assign_temp_run_path_to_config(cfg, tmp_path)
 
             # train period
-            train_ds = ds[cfg.input_variables + [cfg.target_variable]].sel(
+            input_variables = [] if cfg.input_variables is None else cfg.input_variables
+            train_ds = ds[input_variables + [cfg.target_variable]].sel(
                 time=slice(cfg.train_start_date, cfg.train_end_date)
             )
             train_dl = PixelDataLoader(
@@ -409,7 +410,7 @@ class TestDataLoader:
 
         #  time=target_time,
         ds.sel(lat=latlon[0], lon=latlon[1], method="nearest")[cfg.target_variable]
-        assert unnorm_x @ betas == unnorm_y
+        assert np.isclose(unnorm_x @ betas, unnorm_y)
 
         #  TODO: what would be the error in the normalized space
         # y_hat = x @ betas

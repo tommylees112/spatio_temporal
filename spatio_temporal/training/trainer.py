@@ -63,6 +63,7 @@ class Trainer(BaseTrainer):
         #  initialise dataloaders:: self.train_dl; self.valid_dl
         self.initialise_data(ds)
         self.input_size = self.train_dl.input_size
+        self.static_input_size = self.train_dl.static_input_size
         self.output_size = self.train_dl.output_size
 
         # initialise normalizer
@@ -137,7 +138,9 @@ class Trainer(BaseTrainer):
     def initialise_model(self) -> None:
         #  TODO: def get_model from lookup: Dict[str, Model]
         self.model = get_model(
-            cfg=self.cfg, input_size=self.input_size, output_size=self.output_size
+            cfg=self.cfg,
+            input_size=self.input_size + self.static_input_size,
+            output_size=self.output_size,
         )
 
     def initialise_data(self, ds: xr.Dataset, mode: str = "train") -> None:
@@ -204,7 +207,7 @@ class Trainer(BaseTrainer):
             self.optimizer.zero_grad()
 
             # forward pass
-            y_hat = self.model(x)
+            y_hat = self.model(data)
 
             # measure loss on forecasts
             if not (y_hat["y_hat"].ndim == y.ndim):
@@ -254,8 +257,8 @@ class Trainer(BaseTrainer):
                 data = _to_device(data, self.device)
 
                 # run forward pass
-                x_val, y_val = data["x_d"], data["y"]
-                y_hat_val = self.model(x_val)
+                y_val = data["y"]
+                y_hat_val = self.model(data)
                 val_loss = self.loss_fn(y_hat_val["y_hat"], y_val)
 
                 valid_loss.append(val_loss.item())

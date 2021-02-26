@@ -53,7 +53,7 @@ class XarrayDataset(Dataset):
         self.sample: xr.Dataset = sample
         self.batch_dim: str = "sample"
         self.seq_length: int = self.cfg.seq_length
-        self.inputs: List[str] = self.cfg.input_variables
+        self.inputs: Optional[List[str]] = self.cfg.input_variables if self.cfg.input_variables is not None else []
         self.target: str = self.cfg.target_variable
         self.device = self.cfg.device
         self.DEBUG = DEBUG
@@ -64,7 +64,7 @@ class XarrayDataset(Dataset):
         ds: xr.Dataset = stacked
 
         # TODO: allow static inputs
-        # TODO: replace "x_s" with "x_one_hot"
+        #  TODO: replace "x_s" with "x_one_hot"
         self.static_inputs = cfg.static_inputs
         if self.static_inputs == "embedding":
             self.df_static = pd.DataFrame(
@@ -110,6 +110,9 @@ class XarrayDataset(Dataset):
             ds = xr.merge([ds, sin_doy_xr, cos_doy_xr])
 
         self.input_size = len(self.inputs)
+        self.static_input_size = (
+            len(self.static_inputs) if self.static_inputs is not None else 0
+        )
 
         # init dictionaries to store the RAW pixel timeseries
         self.x_d: Dict[str, np.ndarray] = {}
@@ -198,8 +201,8 @@ class XarrayDataset(Dataset):
             if self.static_inputs is not None:
                 # index = pixel; columns = variables
                 x_s = self.df_static.loc[pixel, self.static_inputs].values
-                # TODO: check if error in shaping 
-                x_s = np.tile(x_s, y.size).reshape(y.size, x_s.size)
+                #  TODO: check if error in shaping
+                # np.tile(x_s, y.size).reshape(y.size, x_s.size)
             else:
                 x_s = None
 
@@ -252,7 +255,8 @@ class XarrayDataset(Dataset):
         y = self.y[pixel][target_index].reshape(-1, 1)
 
         if self.static_inputs is not None:
-            x_s = torch.cat((self.x_s[pixel],), dim=-1)
+            # torch.cat((self.x_s[pixel]), dim=-1)
+            x_s = self.x_s[pixel]
         else:
             x_s = torch.from_numpy(np.array([]))
 
