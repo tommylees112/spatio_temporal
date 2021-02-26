@@ -18,7 +18,7 @@ class LSTM(nn.Module):
         super().__init__()
 
         # hyperparameters
-        self.hidden_size = hidden_size
+        self.hidden_size = int(hidden_size)
         self.input_size = input_size
         self.output_size = output_size
         self.forecast_horizon = forecast_horizon
