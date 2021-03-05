@@ -45,3 +45,12 @@ data/kenya.pkl
 *.csv
 *.nc
 *.zip
+*.cpg
+*.shp
+*.dbf
+*.prj 
+*.sbn
+*.sbx
+*.shp
+*.shp.xml 
+*.shx
