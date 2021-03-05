@@ -4,6 +4,7 @@ from typing import Dict, Any, Union, List, Optional
 from collections import OrderedDict
 import pandas as pd
 import pprint
+import torch 
 
 
 class Config:
@@ -132,6 +133,19 @@ class Config:
             raise ValueError(f"{key} is mandatory but 'None' in the config.")
         else:
             return self._cfg[key]
+    
+    def _get_device_property(self, key: str = "device") -> str:
+        # check (and set) defaults
+        value = self.get_property_with_defaults(key)
+
+        #  only use cuda if available
+        #  catches errors that are difficult for users
+        #  AssertionError: Torch not compiled with CUDA enabled
+        if "cuda" in value:
+            value = "cuda:0" if torch.cuda.is_available() else "cpu"
+            self._cfg[key] = value
+
+        return self._cfg[key]
 
     def get_property_with_defaults(self, key: str) -> Any:
         # update the _cfg if access the default of an attribute
@@ -302,7 +316,7 @@ class Config:
 
     @property
     def device(self) -> str:
-        return self.get_property_with_defaults("device")
+        return self._get_device_property("device")
 
     @property
     def learning_rate(self) -> Union[float, Dict[int, float]]:

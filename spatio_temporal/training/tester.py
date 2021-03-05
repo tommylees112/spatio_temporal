@@ -17,16 +17,20 @@ from spatio_temporal.training.train_utils import _to_device, get_model
 
 
 class Tester:
-    def __init__(self, cfg: Config, ds: xr.Dataset):
+    def __init__(self, cfg: Config, ds: xr.Dataset, subset: str = "test"):
         self.cfg = cfg
 
         self.device = self.cfg.device
 
         # load test dataloader:: self.test_dl
-        self.initialise_data(ds)
-        self.input_size = self.test_dl.input_size
+        assert subset in ["test", "train", "validation"]
+        self.subset = subset
+
+        self.initialise_data(ds, subset=self.subset)
+        self.dynamic_input_size = self.test_dl.dynamic_input_size
         self.static_input_size = self.test_dl.static_input_size
         self.forecast_input_size = self.test_dl.forecast_input_size
+        self.input_size = self.dynamic_input_size + self.static_input_size + self.forecast_input_size
         self.output_size = self.test_dl.output_size
 
         # load model and model weights:: self.model
@@ -35,8 +39,9 @@ class Tester:
     def __repr__(self):
         return self.cfg._cfg.__repr__()
 
-    def initialise_data(self, ds: xr.Dataset) -> None:
-        test_ds = train_test_split(ds, cfg=self.cfg, subset="test")
+    def initialise_data(self, ds: xr.Dataset, subset: str = "test") -> None:
+        
+        test_ds = train_test_split(ds, cfg=self.cfg, subset=subset)
         #  NOTE: normalizer should be read from the cfg.run_dir directory
         self.test_dl = PixelDataLoader(
             test_ds,
@@ -47,17 +52,17 @@ class Tester:
             batch_size=self.cfg.batch_size,
         )
 
+        period_start = self.cfg._cfg[f"{subset}_start_date"]
+        period_end = self.cfg._cfg[f"{subset}_end_date"]
         assert (
             self.test_dl.dataset.y != {}
-        ), f"Test Period loads in no data for period {self.cfg.test_start_date} -- {self.cfg.test_end_date} with seq_length {self.cfg.seq_length}"
+        ), f"{subset} Period loads in no data for period {period_start} -- {period_end} with seq_length {self.cfg.seq_length}"
 
     def load_model(self):
         #  TODO: def get_model from lookup: Dict[str, Model]
         self.model = get_model(
             cfg=self.cfg,
-            input_size=self.input_size
-            + self.static_input_size
-            + self.forecast_input_size,
+            input_size=self.input_size,
             output_size=self.output_size,
         )
 
@@ -185,7 +190,7 @@ class Tester:
         #  save the outputs
         if save_preds:
             preds.to_netcdf(
-                self.cfg.run_dir / f"test_predictions_E{str(epoch).zfill(3)}.nc"
+                self.cfg.run_dir / f"{self.subset}_predictions_E{str(epoch).zfill(3)}.nc"
             )
 
         return preds

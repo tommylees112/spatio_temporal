@@ -7,6 +7,7 @@ from spatio_temporal.config import Config
 
 
 class Normalizer:
+    # TODO: single 
     def __init__(
         self, fit_ds: Optional[xr.Dataset] = None, collapse_dims: List[str] = ["time"],
     ):

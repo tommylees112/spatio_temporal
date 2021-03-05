@@ -63,9 +63,10 @@ class XarrayDataset(Dataset):
 
         # TODO: allow forecast variables
         self.forecast_variables = self.cfg.forecast_variables
-        assert (
-            self.cfg.target_variable not in self.cfg.forecast_variables
-        ), "Cannot include target as a forecast variable (leakage)"
+        if self.forecast_variables is not None:
+            assert (
+                self.cfg.target_variable not in self.cfg.forecast_variables
+            ), "Cannot include target as a forecast variable (leakage)"
 
         ds: xr.Dataset = stacked
 
@@ -117,7 +118,7 @@ class XarrayDataset(Dataset):
 
         #  ---- DEFINE INPUT SIZES ----
         # (used to create the models later)
-        self.input_size = len(self.inputs)
+        self.dynamic_input_size = len(self.inputs)
         self.static_input_size = (
             len(self.static_inputs) if self.static_inputs is not None else 0
         )

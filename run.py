@@ -24,6 +24,7 @@ def _get_args() -> dict:
     parser.add_argument("mode", choices=["train", "evaluate"])
     parser.add_argument("--config_file", type=str)
     parser.add_argument("--baseline", type=bool, default=False)
+    parser.add_argument("--overfit_test", type=bool, default=True)
     parser.add_argument("--run_dir", type=str)
 
     # parse args from user input
@@ -39,6 +40,7 @@ if __name__ == "__main__":
     args = _get_args()
     mode = args["mode"]
     baseline = args["baseline"]
+    overfit_test = args["overfit_test"]
 
     #  load data
     #  TODO: automate the loading of data from the Config object somehow
@@ -62,6 +64,10 @@ if __name__ == "__main__":
         # Train test split
         expt_class = trainer = Trainer(cfg, ds)
         tester = Tester(cfg, ds)
+        
+        if overfit_test:
+            # run test on training data to check for overfitting
+            overfitting_tester = Tester(cfg, ds, subset="train")
 
         if baseline:
             print("Testing sklearn Linear Regression")
@@ -92,6 +98,9 @@ if __name__ == "__main__":
         # run test after training
         preds = tester.run_test()
         save_timeseries(preds, cfg=cfg, n=2)
+
+        if overfit_test:
+            overfitting_tester.run_test()
 
     elif mode == "evaluate":
         # RUN TEST !
