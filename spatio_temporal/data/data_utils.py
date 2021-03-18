@@ -19,17 +19,15 @@ def encode_sample_str_as_int(
     return ds, sample_mapping
 
 
-def interpolate_missing_values_in_time(
-    ds: xr.Dataset, sample_dim: str, target_variable: Optional[str] = None
-) -> xr.Dataset:
-    if target_variable is None:
-        target_variable = list(ds.data_vars)[0]
-    df = encode_ds[target_variable].to_dataframe().reset_index("region")
+def interpolate_missing_values_in_time(ds: xr.Dataset) -> xr.Dataset:
+    #  build an example timeseries from spatial dimensions (latlon or pixel or region)
+    #  to then infer the frequency of the timeseries
+    df = pd.DataFrame(np.ones(ds.time.values.shape), index=ds.time.values)
     freq = _check_no_missing_times_in_time_series(df)
 
     #  ensure that all timesteps present
-    resample = encode_ds.resample(time=freq).reduce(np.mean)
-    # interpolate nan values
+    resample = ds.resample(time=freq).reduce(np.mean)
+    #  interpolate nan values in time
     full = resample.interpolate_na(dim="time", method="linear")
 
     return full
@@ -93,7 +91,9 @@ def _stack_xarray(
     return stacked, samples
 
 
-def unstack_xarray(ds: xr.Dataset, sample_str: str = "pixel",) -> xr.Dataset:
+def unstack_xarray(
+    ds: xr.Dataset, sample_str: str = "pixel", latlon: bool = True
+) -> xr.Dataset:
     # lat_lon: str -> [lat, lon]: List[float]
     ll = np.array(
         [
@@ -106,9 +106,15 @@ def unstack_xarray(ds: xr.Dataset, sample_str: str = "pixel",) -> xr.Dataset:
 
     #  create xarray with unstacked sample_str dimension
     df = ds.to_dataframe()
-    df["lat"] = lats
-    df["lon"] = lons
-    ds = df.reset_index().set_index(["lat", "lon"]).to_xarray()
+
+    if latlon:
+        df["lat"] = lats
+        df["lon"] = lons
+        ds = df.reset_index().set_index(["time", "lat", "lon"]).to_xarray()
+    else:
+        df = df.reset_index().rename({sample_str: "index"}, axis=1)
+        df[sample_str] = df["index"].str.split("_").str[0].astype(float)
+        ds = df.set_index(["time", sample_str]).to_xarray()
 
     return ds
 
