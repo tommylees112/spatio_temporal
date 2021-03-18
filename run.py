@@ -64,9 +64,9 @@ if __name__ == "__main__":
         # Train test split
         expt_class = trainer = Trainer(cfg, ds)
         tester = Tester(cfg, ds)
-        
+
         if overfit_test:
-            # run test on training data to check for overfitting
+            #  run test on training data to check for overfitting
             overfitting_tester = Tester(cfg, ds, subset="train")
 
         if baseline:

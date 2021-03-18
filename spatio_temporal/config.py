@@ -4,7 +4,7 @@ from typing import Dict, Any, Union, List, Optional
 from collections import OrderedDict
 import pandas as pd
 import pprint
-import torch 
+import torch
 
 
 class Config:
@@ -133,9 +133,9 @@ class Config:
             raise ValueError(f"{key} is mandatory but 'None' in the config.")
         else:
             return self._cfg[key]
-    
+
     def _get_device_property(self, key: str = "device") -> str:
-        # check (and set) defaults
+        #  check (and set) defaults
         value = self.get_property_with_defaults(key)
 
         #  only use cuda if available

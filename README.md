@@ -35,3 +35,9 @@ ipython --pdb run.py train  -- --config_file tests/testconfigs/run_test_config.y
 ```bash
 pytest --pdb .
 ```
+
+## TODO: test on various other 
+- [pmdarima example timeseries datasets](http://alkaline-ml.com/pmdarima/modules/datasets.html)
+```python
+from pmdarima.datasets import load_airpassengers, load_austres, load_heartrate, load_lynx, load_taylor, load_wineind, load_woolyrnq, load_msft
+```

@@ -65,7 +65,9 @@ class Trainer(BaseTrainer):
         self.dynamic_input_size = self.train_dl.dynamic_input_size
         self.static_input_size = self.train_dl.static_input_size
         self.forecast_input_size = self.train_dl.forecast_input_size
-        self.input_size = self.dynamic_input_size + self.static_input_size + self.forecast_input_size
+        self.input_size = (
+            self.dynamic_input_size + self.static_input_size + self.forecast_input_size
+        )
 
         self.output_size = self.train_dl.output_size
 
@@ -141,9 +143,7 @@ class Trainer(BaseTrainer):
     def initialise_model(self) -> None:
         #  TODO: def get_model from lookup: Dict[str, Model]
         self.model = get_model(
-            cfg=self.cfg,
-            input_size=self.input_size,
-            output_size=self.output_size,
+            cfg=self.cfg, input_size=self.input_size, output_size=self.output_size,
         )
 
     def initialise_data(self, ds: xr.Dataset, mode: str = "train") -> None:
@@ -319,7 +319,8 @@ class Trainer(BaseTrainer):
             # Save epoch weights
             self._save_epoch_information(epoch)
 
-            #  def run_validation_epoch()
+            #  run validation epoch (early stopping etc.)
+            #   epoch_valid_loss: float  stop_training: bool
             epoch_valid_loss, stop_training = self._run_validation_epoch(epoch)
 
             print(f"Train Loss: {epoch_train_loss:.2f}")

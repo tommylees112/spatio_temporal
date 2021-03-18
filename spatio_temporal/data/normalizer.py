@@ -1,3 +1,4 @@
+#  TODO: spatial wide mean vs. region wide mean
 from typing import Optional, List, Union
 import xarray as xr
 import torch
@@ -7,7 +8,7 @@ from spatio_temporal.config import Config
 
 
 class Normalizer:
-    # TODO: single 
+    #  TODO: single
     def __init__(
         self, fit_ds: Optional[xr.Dataset] = None, collapse_dims: List[str] = ["time"],
     ):

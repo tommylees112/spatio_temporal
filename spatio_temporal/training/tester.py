@@ -30,7 +30,9 @@ class Tester:
         self.dynamic_input_size = self.test_dl.dynamic_input_size
         self.static_input_size = self.test_dl.static_input_size
         self.forecast_input_size = self.test_dl.forecast_input_size
-        self.input_size = self.dynamic_input_size + self.static_input_size + self.forecast_input_size
+        self.input_size = (
+            self.dynamic_input_size + self.static_input_size + self.forecast_input_size
+        )
         self.output_size = self.test_dl.output_size
 
         # load model and model weights:: self.model
@@ -40,7 +42,7 @@ class Tester:
         return self.cfg._cfg.__repr__()
 
     def initialise_data(self, ds: xr.Dataset, subset: str = "test") -> None:
-        
+
         test_ds = train_test_split(ds, cfg=self.cfg, subset=subset)
         #  NOTE: normalizer should be read from the cfg.run_dir directory
         self.test_dl = PixelDataLoader(
@@ -61,9 +63,7 @@ class Tester:
     def load_model(self):
         #  TODO: def get_model from lookup: Dict[str, Model]
         self.model = get_model(
-            cfg=self.cfg,
-            input_size=self.input_size,
-            output_size=self.output_size,
+            cfg=self.cfg, input_size=self.input_size, output_size=self.output_size,
         )
 
     @staticmethod
@@ -190,7 +190,8 @@ class Tester:
         #  save the outputs
         if save_preds:
             preds.to_netcdf(
-                self.cfg.run_dir / f"{self.subset}_predictions_E{str(epoch).zfill(3)}.nc"
+                self.cfg.run_dir
+                / f"{self.subset}_predictions_E{str(epoch).zfill(3)}.nc"
             )
 
         return preds

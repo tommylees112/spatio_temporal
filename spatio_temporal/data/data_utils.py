@@ -34,16 +34,20 @@ def _check_no_missing_times_in_time_series(df) -> Union[str, pd.Timedelta]:
     inf_freq = pd.infer_freq(df.index)
     if inf_freq is None:
         inf_freq = _alternative_inf_freq(df)
+        # hardcode the monthly timedelta
+        if inf_freq == pd.Timedelta('31 days 00:00:00'):
+            inf_freq = "M"
 
     #  inf_data = pd.date_range(start=min_timestamp, end=max_timestamp, freq=inf_freq)
-    assert (
-        list(
+    missing_timesteps = list(
             pd.date_range(
                 start=min_timestamp, end=max_timestamp, freq=inf_freq
             ).difference(df.index)
         )
-        == []
-    ), f"Missing data"
+
+    assert (
+        missing_timesteps == []
+    ), f"Missing data: {missing_timesteps}"
 
     return inf_freq
 
@@ -160,7 +164,12 @@ def load_all_data_from_dl_into_memory(dl: Any) -> Tuple[np.ndarray, ...]:
 
 def train_test_split(ds: xr.Dataset, cfg: Config, subset: str) -> xr.Dataset:
     input_variables = [] if cfg.input_variables is None else cfg.input_variables
-    forecast_variables = [] if cfg.forecast_variables is None else cfg.forecast_variables
+    forecast_variables = (
+        [] if cfg.forecast_variables is None else cfg.forecast_variables
+    )
+    # ensure that ds is sorted by time
+    ds = ds.sortby("time")
+    
     if subset == "train":
         ds = ds[input_variables + [cfg.target_variable] + forecast_variables].sel(
             time=slice(cfg.train_start_date, cfg.train_end_date)

@@ -54,3 +54,4 @@ data/kenya.pkl
 *.shp
 *.shp.xml 
 *.shx
+*.pkl
