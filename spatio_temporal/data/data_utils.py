@@ -34,20 +34,18 @@ def _check_no_missing_times_in_time_series(df) -> Union[str, pd.Timedelta]:
     inf_freq = pd.infer_freq(df.index)
     if inf_freq is None:
         inf_freq = _alternative_inf_freq(df)
-        # hardcode the monthly timedelta
-        if inf_freq == pd.Timedelta('31 days 00:00:00'):
+        #  hardcode the monthly timedelta
+        if inf_freq == pd.Timedelta("31 days 00:00:00"):
             inf_freq = "M"
 
     #  inf_data = pd.date_range(start=min_timestamp, end=max_timestamp, freq=inf_freq)
     missing_timesteps = list(
-            pd.date_range(
-                start=min_timestamp, end=max_timestamp, freq=inf_freq
-            ).difference(df.index)
+        pd.date_range(start=min_timestamp, end=max_timestamp, freq=inf_freq).difference(
+            df.index
         )
+    )
 
-    assert (
-        missing_timesteps == []
-    ), f"Missing data: {missing_timesteps}"
+    assert missing_timesteps == [], f"Missing data: {missing_timesteps}"
 
     return inf_freq
 
@@ -66,6 +64,26 @@ def _stack_xarray(
         pixel_strs, dims=["sample"], coords={"sample": samples.sample}
     )
     return stacked, samples
+
+
+def unstack_xarray(ds: xr.Dataset, sample_str: str = "pixel",) -> xr.Dataset:
+    # lat_lon: str -> [lat, lon]: List[float]
+    ll = np.array(
+        [
+            np.array([float(s) for s in sample.split("_")])
+            for sample in ds[sample_str].values
+        ]
+    )
+    lats = ll[:, 0]
+    lons = ll[:, 1]
+
+    #  create xarray with unstacked sample_str dimension
+    df = ds.to_dataframe()
+    df["lat"] = lats
+    df["lon"] = lons
+    ds = df.reset_index().set_index(["lat", "lon"]).to_xarray()
+
+    return ds
 
 
 # @njit
@@ -167,9 +185,9 @@ def train_test_split(ds: xr.Dataset, cfg: Config, subset: str) -> xr.Dataset:
     forecast_variables = (
         [] if cfg.forecast_variables is None else cfg.forecast_variables
     )
-    # ensure that ds is sorted by time
+    #  ensure that ds is sorted by time
     ds = ds.sortby("time")
-    
+
     if subset == "train":
         ds = ds[input_variables + [cfg.target_variable] + forecast_variables].sel(
             time=slice(cfg.train_start_date, cfg.train_end_date)
