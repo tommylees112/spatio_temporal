@@ -8,6 +8,33 @@ from collections import defaultdict
 from spatio_temporal.config import Config
 
 
+def encode_sample_str_as_int(
+    ds: xr.Dataset, sample_str: str
+) -> Tuple[xr.Dataset, Dict[int, str]]:
+    sample_mapping = dict(enumerate(ds[sample_str].values))
+    inverse_mapping = dict((v, k) for k, v in sample_mapping.items())
+
+    ds[sample_str] = [inverse_mapping[v] for v in ds[sample_str].values]
+
+    return ds, sample_mapping
+
+
+def interpolate_missing_values_in_time(
+    ds: xr.Dataset, sample_dim: str, target_variable: Optional[str] = None
+) -> xr.Dataset:
+    if target_variable is None:
+        target_variable = list(ds.data_vars)[0]
+    df = encode_ds[target_variable].to_dataframe().reset_index("region")
+    freq = _check_no_missing_times_in_time_series(df)
+
+    #  ensure that all timesteps present
+    resample = encode_ds.resample(time=freq).reduce(np.mean)
+    # interpolate nan values
+    full = resample.interpolate_na(dim="time", method="linear")
+
+    return full
+
+
 def _alternative_inf_freq(df, method="mode") -> pd.Timedelta:
     # https://stackoverflow.com/a/31518059/9940782
     # taking difference of the timeindex and use the mode (or smallest difference) as the freq

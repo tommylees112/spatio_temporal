@@ -201,6 +201,9 @@ def scatter_plot(
     preds: xr.Dataset, cfg: Config, model: str = "nn", horizon: int = 0
 ) -> None:
     preds = preds.drop("horizon")
+    if "spatial_ref" in [c for c in preds.coords]:
+        preds = preds.drop("spatial_ref")
+
     f, ax = _plot_scatter(preds)
     ax.set_title(f"{model} Observed vs. Predicted [FH {horizon}]")
 
@@ -223,6 +226,8 @@ def _plot_single_timeseries(preds: xr.Dataset) -> Tuple[Any, Any]:
     pixel = np.random.choice(preds.pixel.values)
     if "horizon" in [c for c in preds.coords]:
         preds = preds.drop("horizon")
+    if "spatial_ref" in [c for c in preds.coords]:
+        preds = preds.drop("spatial_ref")
     preds.sel(pixel=pixel).to_dataframe().plot(ax=ax)
     plt.legend()
     ax.set_title(pixel)
