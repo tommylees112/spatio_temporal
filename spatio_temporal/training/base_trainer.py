@@ -6,7 +6,7 @@ import numpy as np
 from pathlib import Path
 import torch
 from spatio_temporal.config import Config
-
+from spatio_temporal.training.train_utils import has_datetime
 
 class BaseTrainer:
     def __init__(self, cfg: Config):
@@ -31,7 +31,10 @@ class BaseTrainer:
         if self.cfg.run_dir is None:
             self.cfg.run_dir = Path().cwd() / "runs" / run_name
         else:
-            self.cfg.run_dir = self.cfg.run_dir / run_name
+            if has_datetime(self.cfg.run_dir):
+                self.cfg.run_dir = self.cfg.run_dir.parents[0] / run_name
+            else:
+                self.cfg.run_dir = self.cfg.run_dir / run_name
 
         self.cfg.run_dir.mkdir(parents=True, exist_ok=True)
 

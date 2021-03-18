@@ -1,6 +1,8 @@
 from torch import Tensor
 from typing import Dict
 from typing import Any
+import re
+from pathlib import Path
 from spatio_temporal.config import Config
 from spatio_temporal.model.lstm import LSTM
 from spatio_temporal.model.bi_lstm import BiLSTM
@@ -39,3 +41,9 @@ def get_model(input_size: int, output_size: int, cfg: Config) -> Any:
         assert False, f"{model} is not a valid choice for model"
 
     return model
+
+
+def has_datetime(path: Path) -> bool:
+    search = path.name
+    regex = r"\d{4}_\d{6}"
+    return [l for l in re.finditer(regex, search)] != []
