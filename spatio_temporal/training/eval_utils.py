@@ -174,6 +174,11 @@ def data_in_memory_to_xarray(
     ds = normalizer.transform_target_preds_Dataset(ds, cfg)
     return ds
 
+def plot_1_1_line(x: np.ndarray, ax) -> plt.Axes:
+    # plot 1:1 line
+    line_1_1_x = np.linspace(x.min(), x.max(), 10)
+    ax.plot(line_1_1_x, line_1_1_x, "k--", label="1:1 Line", alpha=0.5)
+    return ax
 
 def _plot_scatter(preds: xr.Dataset) -> Tuple[Any, Any]:
     f, ax = plt.subplots()
@@ -186,6 +191,7 @@ def _plot_scatter(preds: xr.Dataset) -> Tuple[Any, Any]:
     axis = np.concatenate([np.array(ax.get_xlim()), np.array(ax.get_ylim())])
     ax.set_xlim(axis.min(), axis.max())
     ax.set_ylim(axis.min(), axis.max())
+    ax = plot_1_1_line(axis, ax)
     return f, ax
 
 
