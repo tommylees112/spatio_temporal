@@ -22,10 +22,10 @@ if __name__ == "__main__":
         sys.path = [base_dir.as_posix()] + sys.path
 
     #  Load in the functions from the concept_formation package
-    import sys
+    assert (base_dir.parents[0] / "concept_formation/scripts/data_process").exists()
+    sys.path.insert(0, (base_dir.parents[0] / "concept_formation").as_posix())
 
-    assert (base_dir.parents[0] / "concept_formation").exists()
-    sys.path.append(base_dir.parents[0] / "concept_formation")
+    #  from concept_formation
     from scripts.data_process.clip_netcdf_to_shapefile import (
         prepare_rio_data,
         rasterize_all_geoms,
