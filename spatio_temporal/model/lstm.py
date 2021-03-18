@@ -83,12 +83,16 @@ class LSTM(nn.Module):
         if np.product(data["x_f"].size()) > 0:
             # padding zero: https://stackoverflow.com/a/53126241/9940782
             #  NOTE: all assuming that batch_first !
+            # [batch_size, n_forecast_features, seq_length]
             x_f = data["x_f"]
             new_dims = x_f.shape[1]
+            # create a new array of zeros to be filled
             target = torch.zeros(
                 x_d.shape[0], x_f.shape[1], x_d.shape[-1], device=x_d.device
             )
+            # populate the values from the original dynamic data
             target[:, : x_d.shape[1], :] = x_d
+            # concatenate the forecast variables as new columns
             x_d = torch.cat([target, x_f], dim=-1)
 
         # Set initial states [1, batch_size, hidden_size]
