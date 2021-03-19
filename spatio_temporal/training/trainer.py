@@ -237,7 +237,8 @@ class Trainer(BaseTrainer):
 
             if self.scheduler is not None:
                 learning_rate = self.optimizer.param_groups[0]["lr"]
-                self.scheduler.step()
+                if self.cfg.scheduler == "cycle":
+                    self.scheduler.step()
             else:
                 learning_rate = self.cfg.learning_rate
 
@@ -312,9 +313,14 @@ class Trainer(BaseTrainer):
         stop_training: bool = False
         for epoch in range(1, self.cfg.n_epochs + 1):
             epoch_train_loss = self._train_one_epoch(epoch)
-            #  if cfg.scheduler == "step":
-            # self.scheduler.step()
-            # self._reset_scheduler()
+
+            # learning_rate = self.optimizer.param_groups[0]["lr"]
+            # print(f"LR: {learning_rate:2e}", )
+
+            # step the "step" LR scheduler
+            if self.scheduler is not None:
+                if self.cfg.scheduler == "step":
+                    self.scheduler.step()
 
             # Save epoch weights
             self._save_epoch_information(epoch)
