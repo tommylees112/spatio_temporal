@@ -24,9 +24,9 @@ hidden_size: 64
 
 
 # --- Training Configurations -----------------------------------------------------------------------
-n_epochs: 5
+n_epochs: 10
 
-learning_rate: 1e-4
+learning_rate: 1e-3
 
 batch_size: 30
 
@@ -34,9 +34,9 @@ batch_size: 30
 seq_length: 3
 
 # horizon to make predictions over ([1, ..., horizon])
-horizon: 2
+horizon: 1
 
-# specify optimizer [Adam]
+# specify optimizer [Adam, AdamW]
 optimizer: Adam
 
 # specify loss [MSE, NSE, RMSE]
@@ -44,6 +44,11 @@ loss: MSE
 
 # number of parallel workers used by the dataloaders
 num_workers: 1
+
+early_stopping: 1
+
+# LR Scheduler [cycle, step]
+scheduler: step
 
 # --- Data Configurations ---------------------------------------------------------------------------
 # Path to data set root
@@ -59,3 +64,8 @@ autoregressive: False
 pixel_dims: 
 - lat 
 - lon
+
+encode_doys: True
+
+forecast_variables: 
+  - feature
