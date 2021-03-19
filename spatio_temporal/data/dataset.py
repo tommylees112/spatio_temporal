@@ -208,7 +208,8 @@ class XarrayDataset(Dataset):
             #  store times as float
             times = df_native.index
 
-            # TODO: Include forecasted variables into dynamic
+            # Include forecasted variables into dynamic
+            #  TODO: pad forecast variables with zero so only including the one forecast var
             if self.forecast_variables is not None:
                 x_f = df_native[self.forecast_variables].values
             else:
