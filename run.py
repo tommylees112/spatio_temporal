@@ -47,7 +47,7 @@ if __name__ == "__main__":
     data_dir = Path("data")
 
     ## kenya experiments
-    ds = pickle.load((data_dir / "kenya.pkl").open("rb"))
+    # ds = pickle.load((data_dir / "kenya.pkl").open("rb"))
     # ds = xr.open_dataset(data_dir / "kenya.pkl")
     # ds = ds.isel(lat=slice(0, 10), lon=slice(0, 10))
 
@@ -63,6 +63,9 @@ if __name__ == "__main__":
     ## india experiments
     # ds = xr.open_dataset("data/data_india_regions.nc").sortby("time")
     # ds = xr.open_dataset("data/data_india_full.nc").sortby("time")
+
+    ## 
+    ds = xr.open_dataset("camels_river_level_data.nc")
 
     #  Run Training and Evaluation
     if mode == "train":

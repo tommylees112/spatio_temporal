@@ -204,7 +204,7 @@ class Trainer(BaseTrainer):
             #  to GPU
             data = _to_device(data, self.device)
 
-            x, y = data["x_d"], data["y"]
+            y = data["y"]
 
             #  zero gradient before forward pass
             self.optimizer.zero_grad()
