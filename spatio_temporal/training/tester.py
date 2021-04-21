@@ -14,6 +14,7 @@ from spatio_temporal.training.eval_utils import (
 )
 from spatio_temporal.data.data_utils import _reshape, train_test_split
 from spatio_temporal.training.train_utils import _to_device, get_model
+from spatio_temporal.data.dataloader import DataLoader
 
 
 class Tester:
@@ -27,6 +28,7 @@ class Tester:
         self.subset = subset
 
         self.initialise_data(ds, subset=self.subset)
+        
         self.dynamic_input_size = self.test_dl.dynamic_input_size
         self.static_input_size = self.test_dl.static_input_size
         self.forecast_input_size = self.test_dl.forecast_input_size
@@ -42,10 +44,9 @@ class Tester:
         return self.cfg._cfg.__repr__()
 
     def initialise_data(self, ds: xr.Dataset, subset: str = "test") -> None:
-
         test_ds = train_test_split(ds, cfg=self.cfg, subset=subset)
         #  NOTE: normalizer should be read from the cfg.run_dir directory
-        self.test_dl = PixelDataLoader(
+        self.test_dl: PixelDataLoader = PixelDataLoader(
             test_ds,
             cfg=self.cfg,
             mode="test",
@@ -179,7 +180,7 @@ class Tester:
 
         # unnormalize values
         if unnormalize:
-            normalizer = self.test_dl.dataset.normalizer
+            normalizer = self.test_dl.dataset.normalizer  # type: ignore
             preds = normalizer.unnormalize_preds(preds=preds, cfg=self.cfg)
 
         #  scatter plot the predictions

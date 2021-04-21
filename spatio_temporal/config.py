@@ -197,7 +197,7 @@ class Config:
     @staticmethod
     def _read_list_of_dicts_into_one_dict(
         read_list: Optional[List[Dict[str, float]]]
-    ) -> Dict[str, Any]:
+    ) -> Optional[Dict[str, Any]]:
         if read_list is not None:
             assert False, "self.constant_mean self.constant_std don't currently work!"
             return_dict = read_list[0]
@@ -241,11 +241,11 @@ class Config:
         return self.get_mandatory_attrs("optimizer")
 
     @property
-    def horizon(self) -> Union[int, Dict[str, int]]:
+    def horizon(self) -> int:
         return self.get_mandatory_attrs("horizon")
 
     @property
-    def seq_length(self) -> Union[int, Dict[str, int]]:
+    def seq_length(self) -> int:
         return self.get_mandatory_attrs("seq_length")
 
     @property
@@ -319,7 +319,7 @@ class Config:
         return self._get_device_property("device")
 
     @property
-    def learning_rate(self) -> Union[float, Dict[int, float]]:
+    def learning_rate(self) -> float:
         return self.get_property_with_defaults("learning_rate")
 
     @property

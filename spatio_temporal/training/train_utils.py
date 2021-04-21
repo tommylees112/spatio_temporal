@@ -1,38 +1,40 @@
 from torch import Tensor
-from typing import Dict
-from typing import Any
+from typing import Dict, Union, Any, cast
 import re
 from pathlib import Path
 from spatio_temporal.config import Config
 from spatio_temporal.model.lstm import LSTM
 from spatio_temporal.model.bi_lstm import BiLSTM
+import torch.nn as nn
 
 
-def _to_device(data: Dict[str, Tensor], device: str) -> Dict[str, Tensor]:
+def _to_device(data: Union[Dict[str, Tensor], Dict[str, Dict[str, Tensor]]], device: str) -> Dict[str, Tensor]:
     for key in data.keys():
-        if isinstance(data[key], dict):
-            for nested_key in data[key].keys():
-                data[key][nested_key].to(device)
+        if isinstance(data[key], dict):  # type: ignore
+            for nested_key in data[key].keys():  # type: ignore
+                data[key][nested_key].to(device)  # type: ignore
         else:
-            data[key] = data[key].to(device)
+            data[key] = data[key].to(device)  # type: ignore
 
-    return data
+    return data  # type: ignore
 
 
-def get_model(input_size: int, output_size: int, cfg: Config) -> Any:
+def get_model(input_size: int, output_size: int, cfg: Config) -> nn.Module:
     #  TODO: def get_model from lookup: Dict[str, Model]
     model_str = cfg.model.lower()
+    model: nn.Module 
+    
     if model_str == "lstm":
         model = LSTM(
             input_size=input_size,
-            hidden_size=cfg.hidden_size,
+            hidden_size=cast(int, cfg.hidden_size),  # make mypy happy
             output_size=output_size,
             forecast_horizon=cfg.horizon,
         ).to(cfg.device)
     elif model_str == "bilstm":
         model = BiLSTM(
             input_size=input_size,
-            hidden_size=cfg.hidden_size,
+            hidden_size=cast(int, cfg.hidden_size),  # make mypy happy
             output_size=output_size,
             forecast_horizon=cfg.horizon,
         ).to(cfg.device)

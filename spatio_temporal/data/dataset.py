@@ -5,7 +5,7 @@ from pathlib import Path
 import torch
 import xarray as xr
 from tqdm import tqdm
-from typing import List, Tuple, Optional, Dict
+from typing import List, Tuple, Optional, Dict, Any, cast
 from torch.utils.data import Dataset
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
@@ -14,6 +14,7 @@ from spatio_temporal.data.data_utils import (
     _stack_xarray,
     validate_samples,
     encode_doys,
+    initialize_normalizer,
 )
 from spatio_temporal.data.normalizer import Normalizer
 from spatio_temporal.config import Config
@@ -65,7 +66,7 @@ class XarrayDataset(Dataset):
         self.forecast_variables = self.cfg.forecast_variables
         if self.forecast_variables is not None:
             assert (
-                self.cfg.target_variable not in self.cfg.forecast_variables
+                self.cfg.target_variable not in self.cfg.forecast_variables  # type: ignore
             ), "Cannot include target as a forecast variable (leakage)"
 
         ds: xr.Dataset = stacked
@@ -84,6 +85,7 @@ class XarrayDataset(Dataset):
         #  TODO: make normalizer optional (e.g. for Runoff data)
         #  TODO: normalize only specific variables, e.g. inputs not outputs
         ds = self.run_normalization(ds=ds, normalizer=normalizer)
+
         if self.DEBUG:
             # save the stacked dataset to memory to check dataloading
             self.ds = ds
@@ -129,7 +131,7 @@ class XarrayDataset(Dataset):
         # init dictionaries to store the RAW pixel timeseries
         self.x_d: Dict[str, np.ndarray] = {}
         self.y: Dict[str, np.ndarray] = {}
-        self.times: Dict[str, Optional[np.ndarray]] = {}
+        self.times: Dict[str, np.ndarray] = {}
         self.x_s: Dict[str, Optional[np.ndarray]] = {}
         self.x_f: Dict[str, Optional[np.ndarray]] = {}
 
@@ -140,37 +142,27 @@ class XarrayDataset(Dataset):
 
     def run_normalization(
         self,
-        ds,
+        ds: xr.Dataset,
         collapse_dims: List[str] = ["time"],
         normalizer: Optional[Normalizer] = None,
     ) -> xr.Dataset:
         if self.mode == "train":
-            self.normalizer = Normalizer(fit_ds=ds, collapse_dims=collapse_dims)
-
-            #  Manually set the mean_ / std_ (defined in cfg)
-            if self.cfg.constant_mean is not None:
-                for variable in [k for k in self.cfg.constant_mean.keys()]:
-                    self.normalizer.update_mean_with_constant(
-                        variable=variable, mean_value=self.cfg.constant_mean[variable]
-                    )
-            if self.cfg.constant_std is not None:
-                for variable in [k for k in self.cfg.constant_std.keys()]:
-                    self.normalizer.update_std_with_constant(
-                        variable=variable, std_value=self.cfg.constant_std[variable]
-                    )
+            normalizer = initialize_normalizer(
+                ds=ds, cfg=self.cfg, collapse_dims=collapse_dims, normalizer=normalizer
+            )
+            
 
             # save the normalizer into the run directory
             pickle.dump(
-                self.normalizer, (self.cfg.run_dir / "normalizer.pkl").open("wb")
+                normalizer, (self.cfg.run_dir / "normalizer.pkl").open("wb")
             )
         else:
             if normalizer is None:
-                self.normalizer = pickle.load(
+                normalizer = pickle.load(
                     (self.cfg.run_dir / "normalizer.pkl").open("rb")
                 )
-            else:
-                self.normalizer = normalizer
 
+        self.normalizer = normalizer
         ds = self.normalizer.transform(ds)
         return ds
 
@@ -186,9 +178,11 @@ class XarrayDataset(Dataset):
         self.x_d[pixel] = torch.from_numpy(x_d.astype(np.float32))
         self.y[pixel] = torch.from_numpy(y.astype(np.float32))
         if self.static_inputs is not None:
-            self.x_s[pixel] = torch.from_numpy(x_s.astype(np.float32))
+            x_s = cast(np.ndarray, x_s)  # make mypy happy
+            self.x_s[pixel] = torch.from_numpy(x_s.astype(np.float32))  # type: ignore
         if self.forecast_variables is not None:
-            self.x_f[pixel] = torch.from_numpy(x_f.astype(np.float32))
+            x_f = cast(np.ndarray, x_f)  # make mypy happy
+            self.x_f[pixel] = torch.from_numpy((x_f.astype(np.float32)))  # type: ignore
 
         # store metadata
         if times is not None:
@@ -257,7 +251,7 @@ class XarrayDataset(Dataset):
     def __len__(self):
         return self.num_samples
 
-    def __getitem__(self, idx: int) -> Dict[str, Tensor]:
+    def __getitem__(self, idx: int) -> Dict[str, Dict[str, Tensor]]:
         #  get the valid sample information for pixel, current time idx
         pixel, valid_current_time_index = self.lookup_table[idx]
         valid_current_time_index = int(valid_current_time_index)
@@ -275,7 +269,7 @@ class XarrayDataset(Dataset):
 
         if self.forecast_variables is not None:
             #  up to and including the target time
-            x_f = self.x_f[pixel][start_input_idx : target_index + 1]
+            x_f = self.x_f[pixel][start_input_idx : target_index + 1]  # type: ignore
             assert x_f.shape[0] == self.cfg.seq_length + self.cfg.horizon
         else:
             x_f = torch.from_numpy(np.array([]))
@@ -301,10 +295,10 @@ class XarrayDataset(Dataset):
             "target_time": time,
         }
         data["meta"] = meta
-
+ 
         data["x_d"] = x_d
         data["y"] = y
-        data["x_s"] = x_s
+        data["x_s"] = cast(Any, x_s)   # make mypy happy
         data["x_f"] = x_f
 
         return data

@@ -9,27 +9,8 @@ from spatio_temporal.config import Config
 from spatio_temporal.data.normalizer import Normalizer
 
 
-def _create_dict_data_coords_for_individual_sample(
-    y_hat: Tensor, y: Tensor
-) -> Dict[str, Tuple[str, np.ndarray]]:
-    # a tuple of (dims, data) ready for xr.Dataset creation
-    #  TODO: forecast horizon ... ?
-    #  TODO: how to deal with gpu in a more realistic way
-    data = {}
-    y = y.view(1, -1).detach().cpu().numpy()
-    y = y if isinstance(y, Tensor) else y.reshape(1, -1)
-    data["obs"] = (("pixel", "time"), y)
-    y_hat = (
-        y_hat.view(1, -1).detach().cpu().numpy()
-        if isinstance(y_hat, Tensor)
-        else y_hat.reshape(1, -1)
-    )
-    data["sim"] = (("pixel", "time"), y_hat)
-    return data
-
-
 def create_metadata_arrays(
-    data: Dict[str, Union[Tensor, Any]], dataloader: PixelDataLoader
+    data: Dict[str, Dict[str, Union[Tensor, Any]]], dataloader: PixelDataLoader
 ) -> Tuple[np.ndarray, ...]:
     """Create metadata arrays for time, pixel_id 
 
@@ -75,58 +56,6 @@ def create_metadata_arrays(
         times = np.array(times_).astype("datetime64[ns]")
 
     return pixels, times, forecast_horizons
-
-
-def convert_individual_to_xarray(
-    data: Dict[str, Union[Tensor, Any]],
-    y_hat: Tensor,
-    forecast_horizon: int,
-    dataloader,
-) -> xr.Dataset:
-    # back convert to xarray object ...
-    assert dataloader.batch_size < 2, "This method does not work for batch sizes > 1"
-    times, pixels = create_metadata_arrays(data, dataloader)
-
-    # reshape data to N PIXELS; N TIMES
-    n_pixels = len(np.unique(pixels))
-    n_times = len(np.unique(times))
-
-    data_xr = _create_dict_data_coords_for_individual_sample(
-        y_hat=y_hat["y_hat"].reshape(n_pixels, n_times),
-        y=data["y"].reshape(n_pixels, n_times),
-    )
-
-    ds = xr.Dataset(data_xr, coords={"time": times, "pixel": np.unique(pixels)})
-    return ds
-
-
-def unnormalize_ds(
-    dataloader: PixelDataLoader, ds: xr.Dataset, cfg: Config, normalizer: Normalizer
-) -> xr.Dataset:
-    pixel = str(ds.pixel.values[0])
-    unnorm = normalizer.individual_inverse(
-        ds, pixel_id=pixel, variable=cfg.target_variable
-    )
-    return unnorm
-
-
-def get_individual_prediction_xarray_data(
-    data: Dict[str, Union[Tensor, Any]],
-    y_hat: Tensor,
-    dataloader: PixelDataLoader,
-    cfg: Config,
-) -> xr.Dataset:
-    ds = convert_individual_to_xarray(
-        data=data, y_hat=y_hat, forecast_horizon=cfg.horizon, dataloader=dataloader
-    )
-    #  unnormalize the data (output scale)
-    ds = unnormalize_ds(
-        dataloader=dataloader, ds=ds, cfg=cfg, normalizer=dataloader.normalizer
-    )
-    #  correct the formatting
-    if "sample" in ds.coords:
-        ds = ds.drop("sample")
-    return ds
 
 
 def data_in_memory_to_xarray(

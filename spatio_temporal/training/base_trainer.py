@@ -7,14 +7,15 @@ from pathlib import Path
 import torch
 from spatio_temporal.config import Config
 from spatio_temporal.training.train_utils import has_datetime
+import torch.nn as nn
 
 
 class BaseTrainer:
     def __init__(self, cfg: Config):
-        self.cfg = cfg
-        self.model = None
-        self.optimizer = None
-        self.scheduler = None
+        self.cfg: Config = cfg
+        self.model: nn.Module
+        self.optimizer: torch.optim.Optimizer
+        self.scheduler: torch.optim.lr_scheduler._LRScheduler
         self.n_epochs = self.cfg.n_epochs
 
     def _set_random_seeds(self):

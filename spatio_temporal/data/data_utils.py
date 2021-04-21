@@ -6,6 +6,7 @@ from typing import List, Tuple, Optional, Union, Any, Dict, DefaultDict
 from torch import Tensor
 from collections import defaultdict
 from spatio_temporal.config import Config
+from spatio_temporal.data.normalizer import Normalizer
 
 
 def encode_sample_str_as_int(
@@ -193,8 +194,8 @@ def _reshape(array: np.ndarray) -> np.ndarray:
     return array if array.ndim > 1 else array.reshape(-1, 1)
 
 
-def load_all_data_from_dl_into_memory(dl: Any) -> Tuple[np.ndarray, ...]:
-    out: DefaultDict[List] = defaultdict(list)
+def load_all_data_from_dl_into_memory(dl: Any) -> Dict[str, np.ndarray]:
+    out: DefaultDict[str, List] = defaultdict(list)
     for data in dl:
         # TODO: don't do this on GPU ..?
         out["x_d"].append(data["x_d"].detach().cpu().numpy())
@@ -244,7 +245,7 @@ def train_test_split(ds: xr.Dataset, cfg: Config, subset: str) -> xr.Dataset:
 
 
 def encode_doys(
-    doys: List[int], start_doy: int = 1, end_doy: int = 366
+    doys: Union[int, List[int]], start_doy: int = 1, end_doy: int = 366
 ) -> Tuple[List[float], List[float]]:
     """
     encode (list of) date(s)/doy(s) to cyclic sine/cosine values
@@ -272,3 +273,26 @@ def encode_doys(
         )
 
     return doys_sin, doys_cos
+
+
+def initialize_normalizer(
+    ds: xr.Dataset,
+    cfg: Config,
+    collapse_dims: List[str] = ["time"],
+    normalizer: Optional[Normalizer] = None,
+) -> Normalizer:
+    normalizer = Normalizer(fit_ds=ds, collapse_dims=collapse_dims)
+
+    #  Manually set the mean_ / std_ (defined in cfg)
+    if cfg.constant_mean is not None:
+        for variable in [k for k in cfg.constant_mean.keys()]:
+            normalizer.update_mean_with_constant(
+                variable=variable, mean_value=cfg.constant_mean[variable]
+            )
+    if cfg.constant_std is not None:
+        for variable in [k for k in cfg.constant_std.keys()]:
+            normalizer.update_std_with_constant(
+                variable=variable, std_value=cfg.constant_std[variable]
+            )
+
+    return normalizer

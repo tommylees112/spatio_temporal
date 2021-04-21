@@ -12,6 +12,9 @@ class Normalizer:
     def __init__(
         self, fit_ds: Optional[xr.Dataset] = None, collapse_dims: List[str] = ["time"],
     ):
+        self.mean_: xr.Dataset
+        self.std_: xr.Dataset
+
         # if "sample" in fit_ds.data_vars:
         # fit_ds = fit_ds.rename({"sample": "pixel"})
         if fit_ds is not None:

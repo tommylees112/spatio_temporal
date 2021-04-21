@@ -4,9 +4,10 @@ import xarray as xr
 import torch.nn as nn
 from tqdm import tqdm
 from dataclasses import dataclass
-from typing import List, Union, Optional, Dict
+from typing import List, Union, Optional, Dict, Tuple, cast
 import torch.optim as optim
 from torch import Tensor
+import torch.nn as nn
 
 #  library imports
 from spatio_temporal.model.losses import RMSELoss
@@ -19,13 +20,13 @@ from spatio_temporal.training.train_utils import _to_device, get_model
 
 
 class Memory:
-    train_losses: Optional[Union[List[float], np.ndarray]] = None
-    valid_losses: Optional[Union[List[float], np.ndarray]] = None
+    train_losses: Optional[Union[List[float], np.ndarray]]
+    valid_losses: Optional[Union[List[float], np.ndarray]]
 
     # early stopping criteria
-    best_val_score: Optional[float] = None
-    batches_without_improvement: Optional[int] = None
-    best_model_dict: Optional[Dict[str, Tensor]] = None
+    best_val_score: float
+    batches_without_improvement: int
+    best_model_dict: Dict[str, Tensor]
 
     def __post_init__(self):
         self.train_losses = []
@@ -96,6 +97,8 @@ class Trainer(BaseTrainer):
         self.memory.__post_init__()
 
     def _get_loss_obj(self) -> None:
+        # TODO: mypy doesn't like this function ...
+        loss_fn: nn.modules.loss._Loss
         if self.cfg.loss == "MSE":
             loss_fn = nn.MSELoss()
         if self.cfg.loss == "RMSE":
@@ -106,6 +109,7 @@ class Trainer(BaseTrainer):
         self.loss_fn = loss_fn
 
     def _get_optimizer(self) -> None:
+        optimizer: torch.optim.Optimizer
         if self.cfg.optimizer.lower() == "adam":
             optimizer = torch.optim.Adam(
                 [pam for pam in self.model.parameters()], lr=self.cfg.learning_rate
@@ -118,16 +122,17 @@ class Trainer(BaseTrainer):
             assert (
                 False
             ), f"{self.cfg.optimizer} is not a valid optimizer choose one of: Adam AdamW"
-        self.optimizer = optimizer
+        self.optimizer: torch.optim.Optimizer = optimizer
 
     def _reset_scheduler(self) -> None:
+        self.scheduler: torch.optim.lr_scheduler._LRScheduler
         #  TODO: cfg options for step_size and gamma
         if self.cfg.scheduler == "step":
             self.scheduler = optim.lr_scheduler.StepLR(
                 self.optimizer, step_size=10, gamma=0.1
             )
         elif self.cfg.scheduler == "cycle":
-            self.scheduler = optim.lr_scheduler.OneCycleLR(
+            self.scheduler = torch.optim.lr_scheduler.OneCycleLR(
                 self.optimizer,
                 max_lr=self.cfg.learning_rate,
                 steps_per_epoch=len(self.train_dl.dataset),
@@ -142,7 +147,7 @@ class Trainer(BaseTrainer):
 
     def initialise_model(self) -> None:
         #  TODO: def get_model from lookup: Dict[str, Model]
-        self.model = get_model(
+        self.model: nn.Module = get_model(
             cfg=self.cfg, input_size=self.input_size, output_size=self.output_size,
         )
 
@@ -164,7 +169,7 @@ class Trainer(BaseTrainer):
         # Train-Validation split
         # train period
         train_ds = train_test_split(ds, cfg=self.cfg, subset="train")
-        self.train_dl = PixelDataLoader(
+        self.train_dl: PixelDataLoader = PixelDataLoader(
             train_ds,
             cfg=self.cfg,
             mode="train",
@@ -202,6 +207,7 @@ class Trainer(BaseTrainer):
         pbar = tqdm(self.train_dl, desc=f"Training Epoch {epoch}: ")
         for data in pbar:
             #  to GPU
+            data = cast(Union[Dict[str, Tensor], Dict[str, Dict[str, Tensor]]], data)
             data = _to_device(data, self.device)
 
             y = data["y"]
@@ -270,7 +276,7 @@ class Trainer(BaseTrainer):
         epoch_valid_loss = np.mean(valid_loss)
         return epoch_valid_loss
 
-    def _run_validation_epoch(self, epoch: int) -> Union[float, bool]:
+    def _run_validation_epoch(self, epoch: int) -> Tuple[float, bool]:
         stop_training: bool = False
 
         if self.early_stopping is not None:
@@ -294,13 +300,14 @@ class Trainer(BaseTrainer):
             self.memory.batches_without_improvement += 1
             if self.memory.batches_without_improvement == self.early_stopping:
                 print("Early stopping!")
-
                 #  Load the best model dict
                 self.model.load_state_dict(self.memory.best_model_dict)
+
                 #  save the best model to disk
                 best_epoch = epoch - self.memory.batches_without_improvement
                 model_str = f"BEST_model_epoch{best_epoch:03d}.pt"
                 self._save_model_information(model_str)
+                
                 # break the model loop
                 stop_training = True
 
