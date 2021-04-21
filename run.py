@@ -64,7 +64,7 @@ if __name__ == "__main__":
     # ds = xr.open_dataset("data/data_india_regions.nc").sortby("time")
     # ds = xr.open_dataset("data/data_india_full.nc").sortby("time")
 
-    ## 
+    ## river level data
     ds = xr.open_dataset("data/camels_river_level_data.nc")
 
     #  Run Training and Evaluation
