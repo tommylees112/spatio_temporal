@@ -9,13 +9,13 @@ run_dir:
 seed: 1234
 
 # training, validation and test time periods (format = 'dd/mm/yyyy')
-train_start_date: "01/01/1988"
-train_end_date: "31/12/1997"
+train_start_date: "01/01/1991"
+train_end_date: "31/12/1996"
 
 validation_start_date: "01/01/1985"
-validation_end_date: "31/12/1997"
+validation_end_date: "31/12/1990"
 
-test_start_date: "01/01/1998"
+test_start_date: "01/01/2005"
 test_end_date: "31/12/2008"
 
 # --- Validation Configurations ---------------------------------------------------------------------
