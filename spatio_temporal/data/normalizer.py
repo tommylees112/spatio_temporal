@@ -44,6 +44,7 @@ class Normalizer:
         self.std_ = updated_std
 
     def fit(self, fit_ds: xr.Dataset, collapse_dims: List[str] = ["time"]):
+        print("** Normalizer fit! **")
         self.mean_ = fit_ds.mean(dim=collapse_dims)
         self.std_ = fit_ds.std(dim=collapse_dims)
         self._check_std()

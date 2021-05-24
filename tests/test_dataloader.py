@@ -15,10 +15,13 @@ from tests.utils import (
     create_sin_with_different_phases,
     create_linear_ds,
     get_pollution_data_beijing,
+    is_connected,
 )
 from spatio_temporal.data.data_utils import (
     load_all_data_from_dl_into_memory,
     validate_samples,
+    encode_doys,
+    add_doy_encoding_as_feature_to_dataset,
 )
 from spatio_temporal.data.dataloader import (
     XarrayDataset,
@@ -52,18 +55,29 @@ class TestDataLoader:
         # check that works on 1D data too ...
 
     def test_correct_data_returned(self, tmp_path):
-        ds = _make_dataset().isel(lat=slice(0, 2), lon=slice(0, 1))
+        #  create dummy config path
         cfg = Config(Path("tests/testconfigs/test_config.yml"))
         cfg._cfg["encode_doys"] = True
         cfg._cfg["static_inputs"] = "embedding"
         cfg._cfg["forecast_variables"] = cfg.input_variables
+        #  create temporary run directory (usually done by the )
         create_and_assign_temp_run_path_to_config(cfg, tmp_path)
+        #  create dummy dataset
+        ds = _make_dataset().isel(lat=slice(0, 2), lon=slice(0, 1))
+
+        #  initialise the dataloader
         dl = PixelDataLoader(ds, cfg=cfg, mode="train", DEBUG=True)
+        #  one sample from the dataloader
         data = dl.__iter__().__next__()
         x, y = data["x_d"], data["y"]
 
         #  recreate the stacked dataset
         stacked_ds = dl.dataset.ds
+
+        if cfg.encode_doys:
+            stacked_ds, _ = add_doy_encoding_as_feature_to_dataset(
+                stacked_ds, inputs=cfg.input_variables, target=cfg.target_variable
+            )
 
         #  get the current_time_index and pixel from the __getitem__() call
         getitem_call = int(data["meta"]["index"])
@@ -111,6 +125,9 @@ class TestDataLoader:
             if cfg.autoregressive
             else cfg.input_variables
         )
+        input_vars = (
+            input_vars + ["sin_doy", "cos_doy"] if cfg.encode_doys else input_vars
+        )
 
         # has x been drawn from the actual underlying data?
         all_expected_x = stacked_ds.sel(sample=pixel)["feature"].values
@@ -140,13 +157,14 @@ class TestDataLoader:
         assert np.allclose(x_feature, expected_x_feature)
 
     def test_dataset_beijing(self, tmp_path):
-        path = Path("tests/testconfigs/pollution.yml")
-        cfg = Config(path)
-        create_and_assign_temp_run_path_to_config(cfg, tmp_path)
-        raw_ds = get_pollution_data_beijing().to_xarray().isel(time=slice(0, 1000))
-        ds = XarrayDataset(raw_ds, cfg=cfg, mode="train", DEBUG=True)
+        if is_connected():
+            path = Path("tests/testconfigs/pollution.yml")
+            cfg = Config(path)
+            create_and_assign_temp_run_path_to_config(cfg, tmp_path)
+            raw_ds = get_pollution_data_beijing().to_xarray().isel(time=slice(0, 1000))
+            ds = XarrayDataset(raw_ds, cfg=cfg, mode="train", DEBUG=True)
 
-        assert ds.y != {}
+            assert ds.y != {}
 
     def test_dataset(self, tmp_path):
         target_variable = "target"
@@ -180,7 +198,7 @@ class TestDataLoader:
                 assert y.shape == (1, 1)
                 assert x.shape == (
                     seq_length,
-                    x_features,
+                    x_features + 2 if cfg.encode_doys else x_features,
                 ), f"Shape Mismatch! Expect: {(seq_length, x_features)} Got: {x.shape}"
 
                 meta = data["meta"]
@@ -216,7 +234,6 @@ class TestDataLoader:
 
         assert dl.batch_size == cfg.batch_size
 
-        batch_size = 30
         seq_length = cfg.seq_length
         autoregressive = cfg.autoregressive
         data = next(iter(dl))
@@ -224,10 +241,10 @@ class TestDataLoader:
         n_inputs = len(["features"]) + 1 if autoregressive else len(["features"])
 
         assert x.shape == (
-            batch_size,
+            cfg.batch_size,
             seq_length,
-            n_inputs,
-        ), f"Size Mismatch! Expected: {(batch_size, seq_length, n_inputs)} Got: {x.shape}"
+            n_inputs + 2 if cfg.encode_doys else n_inputs,
+        ), f"Size Mismatch! Expected: {(cfg.batch_size, seq_length, n_inputs)} Got: {x.shape}"
 
     def test_1D_data(self, tmp_path):
         # convert pandas to xarray object
@@ -312,9 +329,15 @@ class TestDataLoader:
             pass
 
     def test_linear_example(self, tmp_path):
+        """Test the linear dataset.
+
+        Args:
+            tmp_path ([type]): [description]
+        """
         cfg = Config(Path("tests/testconfigs/test_config.yml"))
         create_and_assign_temp_run_path_to_config(cfg, tmp_path)
 
+        #  Create linear dataset
         alpha = 0
         beta = 2
         epsilon_sigma = 0
@@ -334,22 +357,30 @@ class TestDataLoader:
         #  load all of the data into memory
         data = load_all_data_from_dl_into_memory(dl)
         x = data["x_d"]
+
+        # (n_samples, n_features, seq_length)
+        assert x.shape == (
+            len(cfg.input_variables) + 2
+            if cfg.encode_doys
+            else len(cfg.input_variables),
+            cfg.seq_length,
+        )
         assert x.shape[-1] == cfg.seq_length
         y = data["y"]
         times = pd.to_datetime(data["time"].astype("datetime64[ns]").flatten())
 
-        # matching batch dims for all samples
+        # matching batch dims (n_samples) for all samples
         assert x.shape[0] == y.shape[0]
 
         #  test ONE SINGLE (x, y) sample
-        INDEX = 1
+        SAMPLE = 1
 
         # get metadata for sample
-        idx = int(data["index"][INDEX])
+        idx = int(data["index"][SAMPLE])
         pixel, valid_current_time_index = dl.dataset.lookup_table[idx]
         latlon = tuple([float(l) for l in str(pixel).split("_")])
-        target_time = times[INDEX]
-        current_time = times[valid_current_time_index][0]
+        target_time = times[SAMPLE]
+        # current_time = times[valid_current_time_index][0]
 
         #  get the correct times (weird indexing becuase of imperfect translation of float -> datetime64[ns])
         max_time = target_time - DateOffset(months=cfg.horizon) + DateOffset(days=2)
@@ -371,11 +402,13 @@ class TestDataLoader:
             dl.dataset.y[pixel], (all_y.values)
         ), "The DataLoader saves incorrect y values to memory"
         assert np.isclose(
-            _y.values, y[INDEX]
+            _y.values, y[SAMPLE]
         ), "The DataLoader returns an incorrect value from the Dataset"
 
         #  input (X) data
         dataset_loaded = dl.dataset.x_d[pixel]
+        # assert dataset_loaded.shape == (, cfg.seq_length)
+
         expected = all_x.values.reshape(dataset_loaded.shape)
         mask = np.isnan(expected)
         expected = expected[~mask]
@@ -393,10 +426,9 @@ class TestDataLoader:
         assert np.allclose(_x_d_index_values, _x_d.values)
 
         # TODO: Why does this not work?
-        if False:
-            assert np.allclose(
-                _x_d_index_values.values, x[INDEX]
-            ), "The Dynamic Data is not the data we expect"
+        assert np.allclose(
+            _x_d_index_values.values, x[SAMPLE]
+        ), "The dynamic data is not the data we expect"
 
         #  check that the raw data is the linear combination we expect
         # "target" should be linear combination of previous timestep "feature"
@@ -404,10 +436,10 @@ class TestDataLoader:
         zeros = np.zeros((cfg.seq_length - 1, 1))
         betas = np.append(zeros, beta).reshape(-1, 1)
         unnorm_x = dl.dataset.normalizer.individual_inverse(
-            x[INDEX], pixel_id=pixel, variable=cfg.input_variables[0]
+            x[SAMPLE], pixel_id=pixel, variable=cfg.input_variables[0]
         )
         unnorm_y = dl.dataset.normalizer.individual_inverse(
-            y[INDEX], pixel_id=pixel, variable=cfg.target_variable
+            y[SAMPLE], pixel_id=pixel, variable=cfg.target_variable
         )
 
         #  time=target_time,

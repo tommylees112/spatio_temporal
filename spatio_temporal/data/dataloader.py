@@ -34,6 +34,9 @@ class PixelDataLoader(DataLoader):
         self.dataset: XarrayDataset = XarrayDataset(
             data, cfg=cfg, mode=mode, normalizer=normalizer, DEBUG=DEBUG
         )
+
+        #  initialise the pytorch DataLoader
+        # kwargs: num_workers, batch_size
         super().__init__(self.dataset, **kwargs)
 
         self.dynamic_input_size = self.dataset.dynamic_input_size

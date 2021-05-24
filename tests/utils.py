@@ -5,6 +5,7 @@ from pathlib import Path
 import pickle
 from typing import List, Tuple, Dict
 from datetime import datetime
+import requests
 
 from spatio_temporal.config import Config
 from spatio_temporal.data.dataloader import PixelDataLoader
@@ -256,3 +257,16 @@ def get_pollution_data_beijing() -> pd.DataFrame:
     df = df.set_index(["time", "point"])
 
     return df
+
+
+def is_connected(url: str = "http://www.kite.com") -> bool:
+    # https://www.kite.com/python/answers/how-to-check-internet-connection-in-python
+    # test if connected to wifi
+    timeout = 5
+    try:
+        request = requests.get(url, timeout=timeout)
+        print("Connected to the Internet")
+        return True
+    except (requests.ConnectionError, requests.Timeout) as exception:
+        print("No internet connection.")
+        return False

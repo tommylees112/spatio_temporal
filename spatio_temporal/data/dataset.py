@@ -15,6 +15,7 @@ from spatio_temporal.data.data_utils import (
     validate_samples,
     encode_doys,
     initialize_normalizer,
+    add_doy_encoding_as_feature_to_dataset,
 )
 from spatio_temporal.data.normalizer import Normalizer
 from spatio_temporal.config import Config
@@ -105,18 +106,9 @@ class XarrayDataset(Dataset):
 
         # add doy encoding
         if cfg.encode_doys:
-            dts = pd.to_datetime(ds.time.values)
-            sin_doy, cos_doy = encode_doys([d.dayofyear for d in dts])
-            self.inputs = self.inputs + ["sin_doy", "cos_doy"]
-            sin_doy_xr = xr.ones_like(ds[self.target]) * np.tile(
-                sin_doy, len(sample.sample.values)
-            ).reshape(-1, len(sample.sample.values))
-            sin_doy_xr = sin_doy_xr.rename("sin_doy")
-            cos_doy_xr = xr.ones_like(ds[self.target]) * np.tile(
-                cos_doy, len(sample.sample.values)
-            ).reshape(-1, len(sample.sample.values))
-            cos_doy_xr = cos_doy_xr.rename("cos_doy")
-            ds = xr.merge([ds, sin_doy_xr, cos_doy_xr])
+            ds, self.inputs = add_doy_encoding_as_feature_to_dataset(
+                ds, inputs=self.inputs, target=self.target
+            )
 
         #  ---- DEFINE INPUT SIZES ----
         # (used to create the models later)
@@ -150,12 +142,9 @@ class XarrayDataset(Dataset):
             normalizer = initialize_normalizer(
                 ds=ds, cfg=self.cfg, collapse_dims=collapse_dims, normalizer=normalizer
             )
-            
 
             # save the normalizer into the run directory
-            pickle.dump(
-                normalizer, (self.cfg.run_dir / "normalizer.pkl").open("wb")
-            )
+            pickle.dump(normalizer, (self.cfg.run_dir / "normalizer.pkl").open("wb"))
         else:
             if normalizer is None:
                 normalizer = pickle.load(
@@ -164,6 +153,7 @@ class XarrayDataset(Dataset):
 
         self.normalizer = normalizer
         ds = self.normalizer.transform(ds)
+
         return ds
 
     def store_data(
@@ -178,11 +168,13 @@ class XarrayDataset(Dataset):
         self.x_d[pixel] = torch.from_numpy(x_d.astype(np.float32))
         self.y[pixel] = torch.from_numpy(y.astype(np.float32))
         if self.static_inputs is not None:
-            x_s = cast(np.ndarray, x_s)  # make mypy happy
-            self.x_s[pixel] = torch.from_numpy(x_s.astype(np.float32))  # type: ignore
+            x_s = cast(np.ndarray, x_s)  #  make mypy happy
+            self.x_s[pixel] = torch.from_numpy(x_s.astype(np.float32))  #  type: ignore
         if self.forecast_variables is not None:
-            x_f = cast(np.ndarray, x_f)  # make mypy happy
-            self.x_f[pixel] = torch.from_numpy((x_f.astype(np.float32)))  # type: ignore
+            x_f = cast(np.ndarray, x_f)  #  make mypy happy
+            self.x_f[pixel] = torch.from_numpy(
+                (x_f.astype(np.float32))
+            )  #  type: ignore
 
         # store metadata
         if times is not None:
@@ -197,6 +189,7 @@ class XarrayDataset(Dataset):
 
         for pixel in tqdm(ds.sample.values, desc="Loading Data: "):
             df_native = ds.sel(sample=pixel).to_dataframe()
+
             self.freq = _check_no_missing_times_in_time_series(df_native)
 
             #  store times as float
@@ -255,7 +248,6 @@ class XarrayDataset(Dataset):
         #  get the valid sample information for pixel, current time idx
         pixel, valid_current_time_index = self.lookup_table[idx]
         valid_current_time_index = int(valid_current_time_index)
-        data = {}
 
         target_index = valid_current_time_index + self.horizon
 
@@ -264,12 +256,12 @@ class XarrayDataset(Dataset):
         end_input_idx_plus_1 = (valid_current_time_index) + 1
         start_input_idx = end_input_idx_plus_1 - self.cfg.seq_length
         x_d = self.x_d[pixel][start_input_idx:end_input_idx_plus_1]
-        if self.DEBUG:
-            assert x_d.shape[0] == self.cfg.seq_length
+
+        assert x_d.shape[0] == self.cfg.seq_length
 
         if self.forecast_variables is not None:
             #  up to and including the target time
-            x_f = self.x_f[pixel][start_input_idx : target_index + 1]  # type: ignore
+            x_f = self.x_f[pixel][start_input_idx : target_index + 1]  #  type: ignore
             assert x_f.shape[0] == self.cfg.seq_length + self.cfg.horizon
         else:
             x_f = torch.from_numpy(np.array([]))
@@ -289,16 +281,17 @@ class XarrayDataset(Dataset):
         time = self.times[pixel][target_index]
         tgt_index = torch.from_numpy(np.array([target_index]).reshape(-1))
 
-        # # write output dictionary
         meta = {
             "index": idx,
             "target_time": time,
         }
+
+        # write output dictionary
+        data = {}
         data["meta"] = meta
- 
         data["x_d"] = x_d
         data["y"] = y
-        data["x_s"] = cast(Any, x_s)   # make mypy happy
+        data["x_s"] = cast(Any, x_s)  #  make mypy happy
         data["x_f"] = x_f
 
         return data

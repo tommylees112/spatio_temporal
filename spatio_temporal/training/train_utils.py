@@ -8,7 +8,9 @@ from spatio_temporal.model.bi_lstm import BiLSTM
 import torch.nn as nn
 
 
-def _to_device(data: Union[Dict[str, Tensor], Dict[str, Dict[str, Tensor]]], device: str) -> Dict[str, Tensor]:
+def _to_device(
+    data: Union[Dict[str, Tensor], Dict[str, Dict[str, Tensor]]], device: str
+) -> Dict[str, Tensor]:
     for key in data.keys():
         if isinstance(data[key], dict):  # type: ignore
             for nested_key in data[key].keys():  # type: ignore
@@ -22,12 +24,12 @@ def _to_device(data: Union[Dict[str, Tensor], Dict[str, Dict[str, Tensor]]], dev
 def get_model(input_size: int, output_size: int, cfg: Config) -> nn.Module:
     #  TODO: def get_model from lookup: Dict[str, Model]
     model_str = cfg.model.lower()
-    model: nn.Module 
-    
+    model: nn.Module
+
     if model_str == "lstm":
         model = LSTM(
             input_size=input_size,
-            hidden_size=cast(int, cfg.hidden_size),  # make mypy happy
+            hidden_size=cast(int, cfg.hidden_size),  #  make mypy happy
             output_size=output_size,
             forecast_horizon=cfg.horizon,
         ).to(cfg.device)

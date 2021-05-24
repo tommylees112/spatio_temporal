@@ -60,4 +60,4 @@ class TestConfig:
     def test_lr_scheduler(self):
         path = Path("tests/testconfigs/test_config.yml")
         cfg = Config(cfg_path=path)
-        assert isinstance(cfg.learning_rate, dict)
+        assert isinstance(cfg.learning_rate, float)

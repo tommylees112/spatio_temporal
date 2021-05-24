@@ -256,9 +256,12 @@ class Trainer(BaseTrainer):
         return epoch_train_loss
 
     def _validate_epoch(self, epoch: int) -> np.ndarray:
-        #  TODO: early stopping
+        # TODO: move validation into tester
         # batch the validation data and run validation forward pass
         val_pbar = tqdm(self.valid_dl, desc=f"Validation Epoch {epoch}: ")
+        # set the model to evaluate
+        self.model.eval()
+
         with torch.no_grad():
             valid_loss = []
             for data in val_pbar:
@@ -307,7 +310,7 @@ class Trainer(BaseTrainer):
                 best_epoch = epoch - self.memory.batches_without_improvement
                 model_str = f"BEST_model_epoch{best_epoch:03d}.pt"
                 self._save_model_information(model_str)
-                
+
                 # break the model loop
                 stop_training = True
 

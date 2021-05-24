@@ -15,6 +15,7 @@ if __name__ == "__main__":
     #  Train
     trainer = Trainer(cfg, ds)
     tester = Tester(cfg, ds)
+    normalizer = trainer.train_dl.dataset.normalizer
 
     cfg._cfg["n_epochs"] = 2
     trainer.train_and_validate()

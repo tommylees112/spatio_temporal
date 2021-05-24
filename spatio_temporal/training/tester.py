@@ -12,7 +12,7 @@ from spatio_temporal.training.eval_utils import (
     create_metadata_arrays,
     scatter_plot,
 )
-from spatio_temporal.data.data_utils import _reshape, train_test_split
+from spatio_temporal.data.data_utils import (_reshape, train_test_split, _infer_frequency)
 from spatio_temporal.training.train_utils import _to_device, get_model
 from spatio_temporal.data.dataloader import DataLoader
 
@@ -28,7 +28,7 @@ class Tester:
         self.subset = subset
 
         self.initialise_data(ds, subset=self.subset)
-        
+
         self.dynamic_input_size = self.test_dl.dynamic_input_size
         self.static_input_size = self.test_dl.static_input_size
         self.forecast_input_size = self.test_dl.forecast_input_size
@@ -121,7 +121,7 @@ class Tester:
                 #  to GPU
                 data = _to_device(data, self.device)
 
-                x, y = data["x_d"], data["y"]
+                y = data["y"]
                 y_hat = self.model(data)
 
                 sim = y_hat["y_hat"].detach().cpu().numpy()
@@ -177,6 +177,21 @@ class Tester:
         self.model.eval()
         out = self._test_epoch()
         preds = self.test_default_dict_to_xarray(out)
+
+        # TODO: are the predictions for the right timesteps?
+        # inf_freq = _infer_frequency(pd.to_datetime(preds.time.values))
+        # if inf_freq == "M":
+        #     offset = pd.DateOffset(months=self.cfg.seq_length + self.cfg.horizon)
+        # elif inf_freq.days = 31:
+        #     expected_first_time + pd.offsets.MonthEnd(-1)
+        # else:
+        #     offset = inf_freq * (self.cfg.seq_length + self.cfg.horizon)
+
+        # expected_first_time = self.cfg.test_start_date + offset
+    
+        # assert (
+        #     preds.time.min() == None
+        # ), "Should have loaded Test Dataset!"
 
         # unnormalize values
         if unnormalize:

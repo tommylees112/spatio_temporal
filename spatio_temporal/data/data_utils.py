@@ -1,8 +1,9 @@
 import pandas as pd
+from pandas.tseries.frequencies import infer_freq
 import xarray as xr
 import numpy as np
 from numba import njit, prange
-from typing import List, Tuple, Optional, Union, Any, Dict, DefaultDict
+from typing import Iterator, List, Tuple, Optional, Union, Any, Dict, DefaultDict
 from torch import Tensor
 from collections import defaultdict
 from spatio_temporal.config import Config
@@ -34,10 +35,10 @@ def interpolate_missing_values_in_time(ds: xr.Dataset) -> xr.Dataset:
     return full
 
 
-def _alternative_inf_freq(df, method="mode") -> pd.Timedelta:
+def _alternative_inf_freq(times: Iterator[pd.Timestamp], method="mode") -> pd.Timedelta:
     # https://stackoverflow.com/a/31518059/9940782
     # taking difference of the timeindex and use the mode (or smallest difference) as the freq
-    diff = (pd.Series(df.index[1:]) - pd.Series(df.index[:-1])).value_counts()
+    diff = (pd.Series(times[1:]) - pd.Series(times[:-1])).value_counts()
 
     if method == "mode":
         # the mode can be considered as frequency
@@ -51,18 +52,23 @@ def _alternative_inf_freq(df, method="mode") -> pd.Timedelta:
     return result
 
 
+def _infer_frequency(times: Iterator[pd.Timestamp]) -> Union[str, pd.Timedelta]:
+    inf_freq = pd.infer_freq(times)
+    if inf_freq is None:
+        inf_freq = _alternative_inf_freq(times)
+        #  hardcode the monthly timedelta
+        if (inf_freq == pd.Timedelta("31 days 00:00:00")):
+            inf_freq = "M"
+    return inf_freq
+
+
 def _check_no_missing_times_in_time_series(df) -> Union[str, pd.Timedelta]:
     assert (
         df.index.dtype == "datetime64[ns]"
     ), "Need the time index to be of type: datetime64[ns]"
     min_timestamp = df.index.min()
     max_timestamp = df.index.max()
-    inf_freq = pd.infer_freq(df.index)
-    if inf_freq is None:
-        inf_freq = _alternative_inf_freq(df)
-        #  hardcode the monthly timedelta
-        if inf_freq == pd.Timedelta("31 days 00:00:00"):
-            inf_freq = "M"
+    inf_freq = _infer_frequency(df.index)
 
     #  inf_data = pd.date_range(start=min_timestamp, end=max_timestamp, freq=inf_freq)
     missing_timesteps = list(
@@ -285,14 +291,42 @@ def initialize_normalizer(
 
     #  Manually set the mean_ / std_ (defined in cfg)
     if cfg.constant_mean is not None:
+        # create a mean value for each variable
         for variable in [k for k in cfg.constant_mean.keys()]:
             normalizer.update_mean_with_constant(
                 variable=variable, mean_value=cfg.constant_mean[variable]
             )
     if cfg.constant_std is not None:
         for variable in [k for k in cfg.constant_std.keys()]:
+            # create a std value for each variable
             normalizer.update_std_with_constant(
                 variable=variable, std_value=cfg.constant_std[variable]
             )
 
     return normalizer
+
+
+def add_doy_encoding_as_feature_to_dataset(
+    ds: xr.Dataset, inputs: List[str], target: str
+) -> Tuple[xr.Dataset, List[str]]:
+    #  create sin/cosin of doy
+    dts = pd.to_datetime(ds.time.values)
+    sin_doy, cos_doy = encode_doys([d.dayofyear for d in dts])
+
+    # store as xr.DataArray objects
+    sin_doy_xr: xr.DataArray = xr.ones_like(ds[target]) * np.tile(
+        sin_doy, len(ds.sample.values)
+    ).reshape(-1, len(ds.sample.values))
+    sin_doy_xr = sin_doy_xr.rename("sin_doy")
+
+    cos_doy_xr: xr.DataArray = xr.ones_like(ds[target]) * np.tile(
+        cos_doy, len(ds.sample.values)
+    ).reshape(-1, len(ds.sample.values))
+    cos_doy_xr = cos_doy_xr.rename("cos_doy")
+
+    # update xr.Dataset
+    ds = xr.merge([ds, sin_doy_xr, cos_doy_xr])
+    # update inputs
+    inputs = inputs + ["sin_doy", "cos_doy"]
+
+    return ds, inputs

@@ -22,6 +22,9 @@ class TestLinear:
         for _ in range(2):
             save_timeseries(preds, cfg)
 
+    def test_vci_example(self):
+        pass
+
 
 if __name__ == "__main__":
     t = TestLinear()
