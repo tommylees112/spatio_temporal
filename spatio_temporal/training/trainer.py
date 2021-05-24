@@ -140,6 +140,7 @@ class Trainer(BaseTrainer):
             )
         else:
             print("** No scheduler selected ** ")
+            self.scheduler = None
 
     def _get_scheduler(self) -> None:
         # https://discuss.pytorch.org/t/how-to-implement-torch-optim-lr-scheduler-cosineannealinglr/28797/6
