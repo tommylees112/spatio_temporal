@@ -55,6 +55,12 @@ input_variables:
   - temperature
   - precipitation
 
+static_input_variables:
+  - p_mean  
+  - pet_mean
+  - area
+  - gauge_elev
+
 autoregressive: False
 
 pixel_dims: 

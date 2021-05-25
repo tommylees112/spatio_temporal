@@ -79,9 +79,24 @@ class TestPipeline:
         for _ in range(2):
             save_timeseries(preds, cfg)
 
-    def test_vci_example(self):
-        pass
+    def test_kenya_vci_example(self, tmp_path):
+        cfg = Config(Path("tests/testconfigs/config.yml"))
+        create_and_assign_temp_run_path_to_config(cfg, tmp_path)
 
+        cfg._cfg["data_path"] = "data/kenya.nc"
+        cfg._cfg["n_epochs"] = 3
+
+        ds, static = load_data(cfg)
+
+        trainer = Trainer(cfg, ds, static_data=static)
+        self.check_loaded_data(cfg, trainer, data=ds.sel(time=slice(cfg.train_start_date, cfg.train_end_date)))
+
+        losses = trainer.train_and_validate()
+
+        tester = Tester(cfg, ds, static_data=static)
+        preds = tester.run_test()
+
+        return losses, preds
 
     def test_runoff_example(self, tmp_path):
         cfg = Config(Path("tests/testconfigs/config_runoff.yml"))
@@ -118,6 +133,7 @@ if __name__ == "__main__":
 
     t = TestPipeline()
     # t.test_linear_example()
+    # losses, preds = t.test_kenya_vci_example()
     losses, preds = t.test_runoff_example(tmp_path)
     
     # plot the outputs
