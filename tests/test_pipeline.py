@@ -83,7 +83,7 @@ class TestPipeline:
         cfg = Config(Path("tests/testconfigs/config.yml"))
         create_and_assign_temp_run_path_to_config(cfg, tmp_path)
 
-        cfg._cfg["data_path"] = "data/kenya.nc"
+        cfg._cfg["data_path"] = Path("data/kenya.nc")
         cfg._cfg["n_epochs"] = 3
 
         ds, static = load_data(cfg)
@@ -102,8 +102,8 @@ class TestPipeline:
         cfg = Config(Path("tests/testconfigs/config_runoff.yml"))
         create_and_assign_temp_run_path_to_config(cfg, tmp_path)
 
-        cfg._cfg["data_path"] = "data/ALL_dynamic_ds.nc"
-        cfg._cfg["static_data_path"] = "data/camels_static.nc"
+        cfg._cfg["data_path"] = Path("data/ALL_dynamic_ds.nc")
+        cfg._cfg["static_data_path"] = Path("data/camels_static.nc")
         cfg._cfg["static_inputs"] = ["p_mean", "pet_mean", "area", "gauge_elev"]
         cfg._cfg["n_epochs"] = 3
 
