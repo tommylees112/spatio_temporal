@@ -483,6 +483,9 @@ class TestDataLoader:
         assert y.shape == (cfg.batch_size, 1, 1)
 
     def test_normalizer(self, tmp_path):
+        cfg = Config(Path("tests/testconfigs/test_config.yml"))
+
+        # create normalizers and test whether working
         normalizer = pickle.load(
             (cfg.run_dir / "normalizer.pkl").open("rb")
         )
@@ -493,7 +496,7 @@ class TestDataLoader:
         normalizer.std_
         normalizer.mean_
 
-        pass 
+        assert False 
 
     def test_static_inputs(self, tmp_path):
         ds = _make_dataset().isel(lat=slice(0, 2), lon=slice(0, 1))

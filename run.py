@@ -2,7 +2,7 @@ from pathlib import Path
 import xarray as xr
 import pickle
 import argparse
-from typing import Union
+from typing import Union, Tuple, Optional
 
 #  library imports
 from spatio_temporal.config import Config
@@ -35,6 +35,16 @@ def _get_args() -> dict:
         raise ValueError("Missing path to run directory")
 
     return args
+
+
+def load_data(cfg: Config) -> Tuple[xr.Dataset, Optional[xr.Dataset]]:
+    ds = xr.open_dataset(cfg.data_path)
+    if cfg.static_data_path is not None:
+        static_data = xr.open_dataset(cfg.static_data_path)
+    else:
+        static_data = None
+
+    return ds, static_data
 
 
 if __name__ == "__main__":
@@ -77,11 +87,7 @@ if __name__ == "__main__":
         cfg = Config(cfg_path=config_file)
 
         # Load in data
-        ds = xr.open_dataset(cfg.data_path)
-        if cfg.static_data_path is not None:
-            static_data = xr.open_dataset(cfg.static_data_path)
-        else:
-            static_data = None
+        ds, static_data = load_data(cfg)
 
         # Train test split
         expt_class = trainer = Trainer(cfg, ds, static_data=static_data)
@@ -103,12 +109,7 @@ if __name__ == "__main__":
         cfg = Config(cfg_path=test_dir / "config.yml")
 
         # Load in data
-        ds = xr.open_dataset(cfg.data_path)
-        if cfg.static_data_path is not None:
-            static_data = xr.open_dataset(cfg.static_data_path)
-        else:
-            static_data = None
-
+        ds, static_data = load_data(cfg)
         expt_class = tester = Tester(cfg, ds, static_data=static_data)
 
     print()
