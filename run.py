@@ -25,7 +25,7 @@ def _get_args() -> dict:
     parser.add_argument("mode", choices=["train", "evaluate"])
     parser.add_argument("--config_file", type=str)
     parser.add_argument("--baseline", type=bool, default=False)
-    parser.add_argument("--overfit_test", type=bool, default=True)
+    parser.add_argument("--overfit_test", type=bool, default=False)
     parser.add_argument("--run_dir", type=str)
 
     # parse args from user input
@@ -87,15 +87,15 @@ if __name__ == "__main__":
         cfg = Config(cfg_path=config_file)
 
         # Load in data
-        ds, static_data = load_data(cfg)
+        ds, static = load_data(cfg)
 
         # Train test split
-        expt_class = trainer = Trainer(cfg, ds, static_data=static_data)
-        tester = Tester(cfg, ds, static_data=static_data)
+        expt_class = trainer = Trainer(cfg, ds, static_data=static)
+        tester = Tester(cfg, ds, static_data=static)
 
         if overfit_test:
             #  run test on training data to check for overfitting
-            overfitting_tester = Tester(cfg, ds, subset="train")
+            overfitting_tester = Tester(cfg, ds, subset="train", static_data=static)
 
         if baseline:
             print("Testing sklearn Linear Regression")
@@ -110,7 +110,7 @@ if __name__ == "__main__":
 
         # Load in data
         ds, static_data = load_data(cfg)
-        expt_class = tester = Tester(cfg, ds, static_data=static_data)
+        expt_class = tester = Tester(cfg, ds, static_data=static)
 
     print()
     print(expt_class)
