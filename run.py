@@ -109,7 +109,7 @@ if __name__ == "__main__":
         cfg = Config(cfg_path=test_dir / "config.yml")
 
         # Load in data
-        ds, static_data = load_data(cfg)
+        ds, static = load_data(cfg)
         expt_class = tester = Tester(cfg, ds, static_data=static)
 
     print()
