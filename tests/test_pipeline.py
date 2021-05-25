@@ -9,6 +9,7 @@ from tests.utils import create_and_assign_temp_run_path_to_config
 from typing import Union
 import numpy as np 
 import xarray as xr 
+from pprint import pformat
 
 
 class TestPipeline:
@@ -29,6 +30,20 @@ class TestPipeline:
         # check dynamic size
         assert dataloader.dataset.x_d[pixel].numpy().shape == (int(data.time.values.shape[0]), len(cfg.input_variables))
 
+    @staticmethod
+    def check_output_files(tmp_path: Path):
+        # check the saved files (model and optimizer epochs)
+        test_dir = sorted([d for d in tmp_path.glob("runs/test*")])[-1]
+        created_files = sorted([t.name for t in test_dir.iterdir()])
+
+        cfg = Config(test_dir / "config.yml")
+        assert len([f for f in created_files if "model_epoch" in f]) == cfg.n_epochs
+
+        if cfg.static_inputs is not None:
+            assert "static_normalizer.pkl" in created_files, f"Expected the static normalizer to be saved. Not found in: {pformat(created_files)}"
+        
+        assert "normalizer.pkl" in created_files, f"Expected the normalizer to be saved. Not found in: {pformat(created_files)}"
+        assert len([f for f in test_dir.glob("*.nc")]) > 0, "Output NetCDF not saved to disk!"
 
     def test_linear_example(self):
         ds = create_linear_ds(epsilon_sigma=10)
@@ -103,13 +118,7 @@ if __name__ == "__main__":
     ax.set_ylabel("MSE Loss")
     ax.set_xlabel("Epoch")
     plt.legend()
-    plt.show()
-
-    # check the saved files (model and optimizer epochs)
-    test_dir = sorted([d for d in tmp_path.glob("runs/test*")])[-1]
-    created_files = sorted([t.name for t in test_dir.iterdir()])
     
-    cfg = Config(test_dir / "config.yml")
-    assert len([f for f in created_files if "model_epoch" in f]) == cfg.n_epochs
+    t.check_output_files(tmp_path)
 
     assert False
