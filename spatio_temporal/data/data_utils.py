@@ -57,7 +57,7 @@ def _infer_frequency(times: Iterator[pd.Timestamp]) -> Union[str, pd.Timedelta]:
     if inf_freq is None:
         inf_freq = _alternative_inf_freq(times)
         #  hardcode the monthly timedelta
-        if (inf_freq == pd.Timedelta("31 days 00:00:00")):
+        if inf_freq == pd.Timedelta("31 days 00:00:00"):
             inf_freq = "M"
     return inf_freq
 
@@ -221,6 +221,8 @@ def load_all_data_from_dl_into_memory(dl: Any) -> Dict[str, np.ndarray]:
 
 
 def train_test_split(ds: xr.Dataset, cfg: Config, subset: str) -> xr.Dataset:
+    # TODO: define sample strategy in space as well as time.
+    #  i.e. define train/test basins (PUB)
     input_variables = [] if cfg.input_variables is None else cfg.input_variables
     forecast_variables = (
         [] if cfg.forecast_variables is None else cfg.forecast_variables
@@ -284,7 +286,7 @@ def encode_doys(
 def initialize_normalizer(
     ds: xr.Dataset,
     cfg: Config,
-    collapse_dims: List[str] = ["time"],
+    collapse_dims: Optional[List[str]] = ["time"],
     normalizer: Optional[Normalizer] = None,
 ) -> Normalizer:
     normalizer = Normalizer(fit_ds=ds, collapse_dims=collapse_dims)

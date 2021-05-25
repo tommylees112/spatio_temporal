@@ -28,11 +28,17 @@ class PixelDataLoader(DataLoader):
         mode: str,
         normalizer: Optional[Normalizer] = None,
         DEBUG: bool = False,
+        static_data: Optional[xr.Dataset] = None,
         **kwargs,
     ):
         #  TODO: add ability to create different subsets by time (train, test, validation)
         self.dataset: XarrayDataset = XarrayDataset(
-            data, cfg=cfg, mode=mode, normalizer=normalizer, DEBUG=DEBUG
+            data,
+            cfg=cfg,
+            mode=mode,
+            normalizer=normalizer,
+            DEBUG=DEBUG,
+            static_data=static_data,
         )
 
         #  initialise the pytorch DataLoader

@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 import xarray as xr
 from pandas.tseries.offsets import DateOffset
+from typing import Optional
 
 #  import from pipeline
 from tests.utils import (
@@ -16,6 +17,7 @@ from tests.utils import (
     create_linear_ds,
     get_pollution_data_beijing,
     is_connected,
+    create_static_example_data,
 )
 from spatio_temporal.data.data_utils import (
     load_all_data_from_dl_into_memory,
@@ -31,6 +33,15 @@ from spatio_temporal.data.data_utils import _stack_xarray
 from spatio_temporal.config import Config
 
 TEST_REAL_DATA = True
+
+
+def create_static(cfg: Config, ds: xr.Dataset) -> Optional[xr.Dataset]:
+    if isinstance(cfg.static_inputs, list):
+        static = create_static_example_data(ds)
+    else:
+        static = None
+
+    return static
 
 
 class TestDataLoader:
@@ -178,7 +189,10 @@ class TestDataLoader:
 
             create_and_assign_temp_run_path_to_config(cfg, tmp_path)
             raw_ds = _make_dataset().isel(lat=slice(0, 2), lon=slice(0, 1))
-            ds = XarrayDataset(raw_ds, cfg=cfg, mode="train", DEBUG=True)
+            static = create_static(cfg=cfg, ds=raw_ds)
+            ds = XarrayDataset(
+                raw_ds, cfg=cfg, mode="train", DEBUG=True, static_data=static
+            )
 
             assert ds.target == target_variable
             assert (
@@ -228,8 +242,14 @@ class TestDataLoader:
         ds = _make_dataset()
         cfg = Config(Path("tests/testconfigs/test_config.yml"))
         create_and_assign_temp_run_path_to_config(cfg, tmp_path)
+        static = create_static(cfg=cfg, ds=ds)
         dl = PixelDataLoader(
-            ds, cfg=cfg, num_workers=1, mode="train", batch_size=cfg.batch_size,
+            ds,
+            cfg=cfg,
+            num_workers=1,
+            mode="train",
+            batch_size=cfg.batch_size,
+            static_data=static,
         )
 
         assert dl.batch_size == cfg.batch_size
@@ -345,6 +365,7 @@ class TestDataLoader:
         ds = create_linear_ds(
             horizon=cfg.horizon, alpha=alpha, beta=beta, epsilon_sigma=epsilon_sigma
         ).isel(lat=slice(0, 2), lon=slice(0, 2))
+        static = create_static(cfg=cfg, ds=ds)
         dl = PixelDataLoader(
             ds,
             cfg=cfg,
@@ -352,6 +373,7 @@ class TestDataLoader:
             mode="train",
             batch_size=cfg.batch_size,
             DEBUG=True,
+            static_data=static,
         )
 
         #  load all of the data into memory
@@ -466,6 +488,18 @@ class TestDataLoader:
         _, y = data["x_d"], data["y"]
 
         assert y.shape == (cfg.batch_size, 1, 1)
+
+    def test_normalizer(self, tmp_path):
+        cfg = Config(Path("tests/testconfigs/test_config.yml"))
+
+        #  create normalizers and test whether working
+        normalizer = pickle.load((cfg.run_dir / "normalizer.pkl").open("rb"))
+
+        normalizer = pickle.load((cfg.run_dir / "static_normalizer.pkl").open("rb"))
+        normalizer.std_
+        normalizer.mean_
+
+        assert False
 
     def test_static_inputs(self, tmp_path):
         ds = _make_dataset().isel(lat=slice(0, 2), lon=slice(0, 1))

@@ -2,6 +2,7 @@ from pathlib import Path
 import xarray as xr
 import pickle
 import argparse
+from typing import Union, Tuple, Optional
 
 #  library imports
 from spatio_temporal.config import Config
@@ -24,7 +25,7 @@ def _get_args() -> dict:
     parser.add_argument("mode", choices=["train", "evaluate"])
     parser.add_argument("--config_file", type=str)
     parser.add_argument("--baseline", type=bool, default=False)
-    parser.add_argument("--overfit_test", type=bool, default=True)
+    parser.add_argument("--overfit_test", type=bool, default=False)
     parser.add_argument("--run_dir", type=str)
 
     # parse args from user input
@@ -34,6 +35,16 @@ def _get_args() -> dict:
         raise ValueError("Missing path to run directory")
 
     return args
+
+
+def load_data(cfg: Config) -> Tuple[xr.Dataset, Optional[xr.Dataset]]:
+    ds = xr.open_dataset(cfg.data_path)
+    if cfg.static_data_path is not None:
+        static_data = xr.open_dataset(cfg.static_data_path)
+    else:
+        static_data = None
+
+    return ds, static_data
 
 
 if __name__ == "__main__":
@@ -65,22 +76,26 @@ if __name__ == "__main__":
     # ds = xr.open_dataset("data/data_india_full.nc").sortby("time")
 
     ## river level data
-    ds = xr.open_dataset("data/camels_river_level_data.nc")
+    # ds = xr.open_dataset("data/camels_river_level_data.nc")
 
     #  Run Training and Evaluation
+    expt_class: Union[Trainer, Tester]
     if mode == "train":
         config_file = Path(args["config_file"])
         assert config_file.exists(), f"Expect config file at {config_file}"
 
         cfg = Config(cfg_path=config_file)
 
+        # Load in data
+        ds, static = load_data(cfg)
+
         # Train test split
-        expt_class = trainer = Trainer(cfg, ds)
-        tester = Tester(cfg, ds)
+        expt_class = trainer = Trainer(cfg, ds, static_data=static)
+        tester = Tester(cfg, ds, static_data=static)
 
         if overfit_test:
             #  run test on training data to check for overfitting
-            overfitting_tester = Tester(cfg, ds, subset="train")
+            overfitting_tester = Tester(cfg, ds, subset="train", static_data=static)
 
         if baseline:
             print("Testing sklearn Linear Regression")
@@ -92,7 +107,10 @@ if __name__ == "__main__":
     else:
         test_dir = Path(args["run_dir"])
         cfg = Config(cfg_path=test_dir / "config.yml")
-        expt_class = tester = Tester(cfg, ds)
+
+        # Load in data
+        ds, static = load_data(cfg)
+        expt_class = tester = Tester(cfg, ds, static_data=static)
 
     print()
     print(expt_class)

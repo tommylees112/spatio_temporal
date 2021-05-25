@@ -3,7 +3,7 @@ import xarray as xr
 import pandas as pd
 from pathlib import Path
 import pickle
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Any
 from datetime import datetime
 import requests
 
@@ -69,7 +69,7 @@ def get_oxford_weather_data() -> pd.DataFrame:
     return df
 
 
-def create_test_oxford_run_data(data_path: Path("data")) -> pd.DataFrame:
+def create_test_oxford_run_data(data_path=Path("data")) -> pd.DataFrame:
     df = get_oxford_weather_data()
     try:
         df["time"] = pd.to_datetime(df["Date Time"])
@@ -151,6 +151,21 @@ def create_linear_ds(
     return ds
 
 
+def create_static_example_data(ds: xr.Dataset) -> xr.Dataset:
+    data_var = [v for v in ds.data_vars][0]
+    #  create a constant and a random variable
+    static_const = (
+        xr.ones_like(ds[data_var]).isel(time=0).drop("time").rename("static_const")
+    )
+    static_rand = (
+        xr.ones_like(ds[data_var]).isel(time=0).drop("time").rename("static_rand")
+    )
+    static_rand = np.random.normal(size=static_rand.shape) * static_rand
+    static = xr.merge([static_const, static_rand])
+
+    return static
+
+
 def create_dummy_vci_ds():
     ds = _make_dataset(
         start_date="01-01-2000",
@@ -160,7 +175,7 @@ def create_dummy_vci_ds():
 
     def f(
         x: xr.Dataset, betas: np.ndarray = np.array([1, 2, 3]), epsilon_sigma: float = 1
-    ) -> xr.DataArray:
+    ) -> Tuple[List[Any], Any]:
         # y = X @ B + epsilon
         epsilon = np.random.normal(
             loc=0, scale=epsilon_sigma, size=tuple(dict(ds.dims).values())

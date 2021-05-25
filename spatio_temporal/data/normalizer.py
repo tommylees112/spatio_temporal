@@ -8,12 +8,14 @@ from spatio_temporal.config import Config
 
 
 class Normalizer:
-    #  TODO: single
     def __init__(
-        self, fit_ds: Optional[xr.Dataset] = None, collapse_dims: List[str] = ["time"],
+        self,
+        fit_ds: Optional[xr.Dataset] = None,
+        collapse_dims: Optional[List[str]] = ["time"],
     ):
         self.mean_: xr.Dataset
         self.std_: xr.Dataset
+        self.collapse_dims = collapse_dims
 
         # if "sample" in fit_ds.data_vars:
         # fit_ds = fit_ds.rename({"sample": "pixel"})
@@ -43,29 +45,50 @@ class Normalizer:
         updated_std = self._update_xarray_value(updated_std, variable, std_value)
         self.std_ = updated_std
 
-    def fit(self, fit_ds: xr.Dataset, collapse_dims: List[str] = ["time"]):
-        print("** Normalizer fit! **")
+    def fit(self, fit_ds: xr.Dataset, collapse_dims: Optional[List[str]] = ["time"]):
         self.mean_ = fit_ds.mean(dim=collapse_dims)
         self.std_ = fit_ds.std(dim=collapse_dims)
         self._check_std()
+        print("** Normalizer fit! **")
 
     def _check_std(self, epsilon: float = 1e-10):
+        #  TODO: keep constant values as their raw value ?
         #  replace std values close to zero with small number (epsilon)
         std_zero = xr.ones_like(self.std_.to_array()) * np.isclose(
             self.std_.to_array().values, 0
         )
         std_zero = std_zero.to_dataset(dim="variable").astype("bool")
-        self.std_.where(~std_zero, epsilon)
+        self.std_ = self.std_.where(~std_zero, epsilon)
 
-    def transform(self, ds) -> xr.Dataset:
+    def transform(self, ds: xr.Dataset, variables: Optional[List[str]]) -> xr.Dataset:
         # zero mean, unit variance
-        return (ds - self.mean_) / self.std_
+        if variables is not None:
+            norm_list = []
+            for var in variables:
+                norm_list = (ds[var] - self.mean_[var]) / self.std_[var]
+            normed = xr.merge(norm_list)
+        else:
+            #  normalize ALL variables
+            normed = (ds - self.mean_) / self.std_
+
+        return normed
 
     ########################################################
     ########### RECOVERING UNDERLYING DATA #################
     ########################################################
-    def inverse_transform(self, ds: xr.Dataset) -> xr.Dataset:
-        return (ds * self.std_) + self.mean_
+    def inverse_transform(
+        self, ds: xr.Dataset, variables: Optional[List[str]]
+    ) -> xr.Dataset:
+        if variables is not None:
+            norm_list = []
+            for var in variables:
+                norm_list = (ds[var] * self.std_[var]) + self.mean_[var]
+            unnormed = xr.merge(norm_list)
+        else:
+            #  unnormalize ALL variables
+            unnormed = (ds * self.std_) + self.mean_
+
+        return unnormed
 
     def individual_inverse(
         self, data: Union[np.ndarray, torch.Tensor], pixel_id: str, variable: str

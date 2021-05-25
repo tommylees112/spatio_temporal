@@ -33,7 +33,7 @@ class Config:
         "pixel_dims": ["lat", "lon"],
         "num_workers": 1,
         "seed": 1234,
-        "device": "cpu",
+        "device": "cuda",
         "learning_rate": 1e-2,
         "time_str": "time",
         "run_dir": Path("runs"),
@@ -49,12 +49,16 @@ class Config:
         "early_stopping": None,
         "encode_doys": False,
         "input_variables": None,
+        "static_data_path": None,
+        "data_path": None,
+        "normalize_variables": None,
     }
 
     def __init__(self, cfg_path: Path):
         self.file_path = cfg_path
         self._cfg = self._read_config(self.file_path)
         self._check_all_mandatory()
+        self._check_training_data_paths_exist()
 
     def __repr__(self):
         return pprint.pformat(self._cfg)
@@ -155,6 +159,21 @@ class Config:
 
         return self._cfg[key]
 
+    def _check_training_data_paths_exist(self):
+        # Optionally Provided!
+        if self.data_path is not None:
+            assert (
+                self.data_path.exists()
+            ), f"Data path does not exist: {self.data_path}"
+        if (
+            (self.static_inputs is not None)
+            and (self.static_inputs != "embedding")
+            and (self.static_data_path is not None)
+        ):
+            assert (
+                self.static_data_path.exists()
+            ), f"Static Data Path must be provided with variables: [{self.static_inputs}]"
+
     #  --------------------------------------------------
     #  - Parse Config -----------------------------------
     #  --------------------------------------------------
@@ -174,10 +193,10 @@ class Config:
                 if isinstance(val, list):
                     temp_list = []
                     for element in val:
-                        temp_list.append(Path(element))
+                        temp_list.append(Path(element).absolute())
                     cfg[key] = temp_list
                 else:
-                    cfg[key] = Path(val)
+                    cfg[key] = Path(val).absolute()
             else:
                 cfg[key] = None
         return cfg
@@ -279,6 +298,7 @@ class Config:
     #  --------------------------------------------------
     #  - Settable Properties ----------------------------
     #  --------------------------------------------------
+    #  Run Dir
     @property
     def run_dir(self) -> Path:
         return self.get_property_with_defaults("run_dir")
@@ -287,6 +307,7 @@ class Config:
     def run_dir(self, folder: Path):
         self._cfg["run_dir"] = folder
 
+    #  Seed
     @property
     def seed(self) -> int:
         return self.get_property_with_defaults("seed")
@@ -379,3 +400,16 @@ class Config:
     @property
     def encode_doys(self) -> bool:
         return self.get_property_with_defaults("encode_doys")
+
+    #  Data Paths: Optional to allow user to pass in datasets directly
+    @property
+    def data_path(self) -> Path:
+        return self.get_property_with_defaults("data_path")
+
+    @property
+    def static_data_path(self) -> Optional[Path]:
+        return self.get_property_with_defaults("static_data_path")
+
+    @property
+    def normalize_variables(self) -> Optional[List[str]]:
+        return self.get_property_with_defaults("normalize_variables")
