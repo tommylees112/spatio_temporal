@@ -185,10 +185,10 @@ class Config:
                 if isinstance(val, list):
                     temp_list = []
                     for element in val:
-                        temp_list.append(Path(element))
+                        temp_list.append(Path(element).absolute())
                     cfg[key] = temp_list
                 else:
-                    cfg[key] = Path(val)
+                    cfg[key] = Path(val).absolute()
             else:
                 cfg[key] = None
         return cfg
