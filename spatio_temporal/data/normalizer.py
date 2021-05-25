@@ -9,7 +9,9 @@ from spatio_temporal.config import Config
 
 class Normalizer:
     def __init__(
-        self, fit_ds: Optional[xr.Dataset] = None, collapse_dims: Optional[List[str]] = ["time"],
+        self,
+        fit_ds: Optional[xr.Dataset] = None,
+        collapse_dims: Optional[List[str]] = ["time"],
     ):
         self.mean_: xr.Dataset
         self.std_: xr.Dataset
@@ -66,22 +68,24 @@ class Normalizer:
                 norm_list = (ds[var] - self.mean_[var]) / self.std_[var]
             normed = xr.merge(norm_list)
         else:
-            # normalize ALL variables
+            #  normalize ALL variables
             normed = (ds - self.mean_) / self.std_
-        
+
         return normed
 
     ########################################################
     ########### RECOVERING UNDERLYING DATA #################
     ########################################################
-    def inverse_transform(self, ds: xr.Dataset, variables: Optional[List[str]]) -> xr.Dataset:
+    def inverse_transform(
+        self, ds: xr.Dataset, variables: Optional[List[str]]
+    ) -> xr.Dataset:
         if variables is not None:
             norm_list = []
             for var in variables:
-                norm_list = (ds[var] * self.std_[var]) + self.mean_[var] 
+                norm_list = (ds[var] * self.std_[var]) + self.mean_[var]
             unnormed = xr.merge(norm_list)
         else:
-            # unnormalize ALL variables
+            #  unnormalize ALL variables
             unnormed = (ds * self.std_) + self.mean_
 
         return unnormed

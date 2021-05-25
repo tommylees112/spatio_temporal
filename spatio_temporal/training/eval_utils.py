@@ -33,13 +33,13 @@ def create_metadata_arrays(
     #  create (batch_size, n_target_times)
     horizon = dataloader.dataset.cfg.horizon
     n_target_times = 1
-    # TODO: len(times) offers up error?
+    #  TODO: len(times) offers up error?
     try:
         times = times.reshape(-1, n_target_times) if len(times) > 1 else times
     except TypeError as E:
-        # len() of unsized objet
-        #   In[]:  times.shape 
-        #   Out[]: ()
+        #  len() of unsized objet
+        #    In[]:  times.shape
+        #    Out[]: ()
         times = times.reshape(-1, n_target_times)
 
     # copy pixel arrays for each n_target_times

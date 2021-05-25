@@ -40,7 +40,7 @@ def create_static(cfg: Config, ds: xr.Dataset) -> Optional[xr.Dataset]:
         static = create_static_example_data(ds)
     else:
         static = None
-    
+
     return static
 
 
@@ -190,7 +190,9 @@ class TestDataLoader:
             create_and_assign_temp_run_path_to_config(cfg, tmp_path)
             raw_ds = _make_dataset().isel(lat=slice(0, 2), lon=slice(0, 1))
             static = create_static(cfg=cfg, ds=raw_ds)
-            ds = XarrayDataset(raw_ds, cfg=cfg, mode="train", DEBUG=True, static_data=static)
+            ds = XarrayDataset(
+                raw_ds, cfg=cfg, mode="train", DEBUG=True, static_data=static
+            )
 
             assert ds.target == target_variable
             assert (
@@ -242,7 +244,12 @@ class TestDataLoader:
         create_and_assign_temp_run_path_to_config(cfg, tmp_path)
         static = create_static(cfg=cfg, ds=ds)
         dl = PixelDataLoader(
-            ds, cfg=cfg, num_workers=1, mode="train", batch_size=cfg.batch_size, static_data=static,
+            ds,
+            cfg=cfg,
+            num_workers=1,
+            mode="train",
+            batch_size=cfg.batch_size,
+            static_data=static,
         )
 
         assert dl.batch_size == cfg.batch_size
@@ -366,7 +373,7 @@ class TestDataLoader:
             mode="train",
             batch_size=cfg.batch_size,
             DEBUG=True,
-            static_data=static
+            static_data=static,
         )
 
         #  load all of the data into memory
@@ -485,18 +492,14 @@ class TestDataLoader:
     def test_normalizer(self, tmp_path):
         cfg = Config(Path("tests/testconfigs/test_config.yml"))
 
-        # create normalizers and test whether working
-        normalizer = pickle.load(
-            (cfg.run_dir / "normalizer.pkl").open("rb")
-        )
+        #  create normalizers and test whether working
+        normalizer = pickle.load((cfg.run_dir / "normalizer.pkl").open("rb"))
 
-        normalizer = pickle.load(
-            (cfg.run_dir / "static_normalizer.pkl").open("rb")
-        )
+        normalizer = pickle.load((cfg.run_dir / "static_normalizer.pkl").open("rb"))
         normalizer.std_
         normalizer.mean_
 
-        assert False 
+        assert False
 
     def test_static_inputs(self, tmp_path):
         ds = _make_dataset().isel(lat=slice(0, 2), lon=slice(0, 1))

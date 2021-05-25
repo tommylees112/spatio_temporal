@@ -61,7 +61,7 @@ class Trainer(BaseTrainer):
         #  set random seeds
         self._set_seeds(self.cfg)
 
-        # set the device (["cpu", "cuda:0"] from cfg)
+        #  set the device (["cpu", "cuda:0"] from cfg)
         self._set_device()
         print(f"** Running on device: {self.device} **")
 
@@ -163,7 +163,9 @@ class Trainer(BaseTrainer):
             cfg=self.cfg, input_size=self.input_size, output_size=self.output_size,
         )
 
-    def initialise_data(self, ds: xr.Dataset, static_data: Optional[xr.Dataset] = None) -> None:
+    def initialise_data(
+        self, ds: xr.Dataset, static_data: Optional[xr.Dataset] = None
+    ) -> None:
         """Load data from DataLoaders and store as attributes
 
         Args:

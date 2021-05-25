@@ -160,11 +160,19 @@ class Config:
         return self._cfg[key]
 
     def _check_training_data_paths_exist(self):
-        # Optionally Provided! 
+        # Optionally Provided!
         if self.data_path is not None:
-            assert self.data_path.exists(), f"Data path does not exist: {self.data_path}"
-        if (self.static_inputs is not None) and (self.static_inputs != "embedding") and (self.static_data_path is not None):
-            assert self.static_data_path.exists(), f"Static Data Path must be provided with variables: [{self.static_inputs}]"
+            assert (
+                self.data_path.exists()
+            ), f"Data path does not exist: {self.data_path}"
+        if (
+            (self.static_inputs is not None)
+            and (self.static_inputs != "embedding")
+            and (self.static_data_path is not None)
+        ):
+            assert (
+                self.static_data_path.exists()
+            ), f"Static Data Path must be provided with variables: [{self.static_inputs}]"
 
     #  --------------------------------------------------
     #  - Parse Config -----------------------------------
@@ -405,4 +413,3 @@ class Config:
     @property
     def normalize_variables(self) -> Optional[List[str]]:
         return self.get_property_with_defaults("normalize_variables")
-

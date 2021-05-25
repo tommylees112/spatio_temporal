@@ -49,7 +49,12 @@ class Tester:
     def __repr__(self):
         return self.cfg._cfg.__repr__()
 
-    def initialise_data(self, ds: xr.Dataset, subset: str = "test", static_data: Optional[xr.Dataset] = None) -> None:
+    def initialise_data(
+        self,
+        ds: xr.Dataset,
+        subset: str = "test",
+        static_data: Optional[xr.Dataset] = None,
+    ) -> None:
         test_ds = train_test_split(ds, cfg=self.cfg, subset=subset)
         #  NOTE: normalizer should be read from the cfg.run_dir directory
         self.test_dl: PixelDataLoader = PixelDataLoader(

@@ -79,7 +79,7 @@ if __name__ == "__main__":
     # ds = xr.open_dataset("data/camels_river_level_data.nc")
 
     #  Run Training and Evaluation
-    expt_class: Union[Trainer, Tester] 
+    expt_class: Union[Trainer, Tester]
     if mode == "train":
         config_file = Path(args["config_file"])
         assert config_file.exists(), f"Expect config file at {config_file}"

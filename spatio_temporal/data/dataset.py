@@ -49,7 +49,7 @@ class XarrayDataset(Dataset):
         static_data: Optional[xr.Dataset] = None,
     ):
         self.cfg = cfg
-        
+
         if self.cfg.static_data_path is not None:
             assert static_data is not None, "Expect static dataset to be provided"
 
@@ -80,12 +80,12 @@ class XarrayDataset(Dataset):
                 self.cfg.target_variable not in self.cfg.forecast_variables  # type: ignore
             ), "Cannot include target as a forecast variable (leakage)"
 
-        # -------- data ----------
-        # The data as it is loaded into the models
+        #  -------- data ----------
+        #  The data as it is loaded into the models
         ds: xr.Dataset = stacked
         static: Optional[xr.Dataset] = stacked_static
 
-        # -------- normalization ----------
+        #  -------- normalization ----------
         #  TODO: make normalizer optional (e.g. for Runoff data)
         #  TODO: normalize only specific variables, e.g. inputs not outputs
         ds = self.run_normalization(ds=ds, normalizer=normalizer)
@@ -105,7 +105,9 @@ class XarrayDataset(Dataset):
             )
             self.static_inputs = self.df_static.columns
         elif isinstance(self.static_inputs, list):
-            assert static is not None, "Expected static data to be passed to Dataset initialisation"
+            assert (
+                static is not None
+            ), "Expected static data to be passed to Dataset initialisation"
             self.df_static = static.to_dataframe()
         else:
             self.df_static = None
@@ -156,41 +158,47 @@ class XarrayDataset(Dataset):
         # 3. Store y, x_d, x_s
         self.create_lookup_table(ds)
 
-    def _run_normalization(self, ds: xr.Dataset, collapse_dims: Optional[List], static: bool = False, normalizer: Optional[Normalizer] = None,) -> Tuple[xr.Dataset, Normalizer]:
+    def _run_normalization(
+        self,
+        ds: xr.Dataset,
+        collapse_dims: Optional[List],
+        static: bool = False,
+        normalizer: Optional[Normalizer] = None,
+    ) -> Tuple[xr.Dataset, Normalizer]:
         filename: str = "static_normalizer.pkl" if static else "normalizer.pkl"
         if self.mode == "train":
             normalizer = initialize_normalizer(
                 ds=ds, cfg=self.cfg, collapse_dims=collapse_dims, normalizer=normalizer
             )
             pickle.dump(normalizer, (self.cfg.run_dir / filename).open("wb"))
-        
+
         else:
             #  Normalizer already fit on the training data & saved to disk
             if normalizer is None:
-                normalizer = pickle.load(
-                    (self.cfg.run_dir / filename).open("rb")
-                )
-        
+                normalizer = pickle.load((self.cfg.run_dir / filename).open("rb"))
+
         ds = normalizer.transform(ds, variables=self.cfg.normalize_variables)
 
         return ds, normalizer
 
     def run_static_normalization(
-        self,
-        ds: xr.Dataset,
-        normalizer: Optional[Normalizer] = None,
+        self, ds: xr.Dataset, normalizer: Optional[Normalizer] = None,
     ) -> xr.Dataset:
-        ds, normalizer = self._run_normalization(ds=ds, static=True, collapse_dims=None, normalizer=normalizer)
+        ds, normalizer = self._run_normalization(
+            ds=ds, static=True, collapse_dims=None, normalizer=normalizer
+        )
         self.static_normalizer = normalizer
         return ds
-    
+
     def run_normalization(
         self,
         ds: xr.Dataset,
         collapse_dims: Optional[List[str]] = ["time"],
         normalizer: Optional[Normalizer] = None,
     ) -> xr.Dataset:
-        ds, normalizer = self._run_normalization(ds=ds, static=False, collapse_dims=collapse_dims, normalizer=normalizer)
+        ds, normalizer = self._run_normalization(
+            ds=ds, static=False, collapse_dims=collapse_dims, normalizer=normalizer
+        )
         self.normalizer = normalizer
         return ds
 

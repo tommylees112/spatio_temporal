@@ -221,7 +221,7 @@ def load_all_data_from_dl_into_memory(dl: Any) -> Dict[str, np.ndarray]:
 
 
 def train_test_split(ds: xr.Dataset, cfg: Config, subset: str) -> xr.Dataset:
-    # TODO: define sample strategy in space as well as time. 
+    # TODO: define sample strategy in space as well as time.
     #  i.e. define train/test basins (PUB)
     input_variables = [] if cfg.input_variables is None else cfg.input_variables
     forecast_variables = (

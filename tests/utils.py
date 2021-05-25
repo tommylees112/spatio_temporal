@@ -69,7 +69,7 @@ def get_oxford_weather_data() -> pd.DataFrame:
     return df
 
 
-def create_test_oxford_run_data(data_path = Path("data")) -> pd.DataFrame:
+def create_test_oxford_run_data(data_path=Path("data")) -> pd.DataFrame:
     df = get_oxford_weather_data()
     try:
         df["time"] = pd.to_datetime(df["Date Time"])
