@@ -75,7 +75,7 @@ class TestPipeline:
         cfg._cfg["data_path"] = "data/ALL_dynamic_ds.nc"
         cfg._cfg["static_data_path"] = "data/camels_static.nc"
         cfg._cfg["static_inputs"] = ["p_mean", "pet_mean", "area", "gauge_elev"]
-        cfg._cfg["n_epochs"] = 10
+        cfg._cfg["n_epochs"] = 3
 
         ds, static = load_data(cfg)
         
@@ -107,6 +107,8 @@ if __name__ == "__main__":
     tmp_path = (pytest_dir / dir_name)
     tmp_path.mkdir(exist_ok=True, parents=True)
 
+    print(f"--- Writing to: {tmp_path} ---")
+
     t = TestPipeline()
     # t.test_linear_example()
     losses, preds = t.test_runoff_example(tmp_path)
@@ -120,5 +122,3 @@ if __name__ == "__main__":
     plt.legend()
     
     t.check_output_files(tmp_path)
-
-    assert False

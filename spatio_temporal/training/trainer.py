@@ -53,7 +53,6 @@ class Trainer(BaseTrainer):
 
         # set / use the run directory
         self._create_folder_structure()
-        self.device = self.cfg.device
         self._allow_subsequent_nan_losses = _allow_subsequent_nan_losses
 
         #  add early stopping
@@ -61,6 +60,10 @@ class Trainer(BaseTrainer):
 
         #  set random seeds
         self._set_seeds(self.cfg)
+
+        # set the device (["cpu", "cuda:0"] from cfg)
+        self._set_device()
+        print(f"** Running on device: {self.device} **")
 
         # dump config file
         self.cfg.dump_config(self.cfg.run_dir)
