@@ -356,8 +356,8 @@ class Trainer(BaseTrainer):
             #   epoch_valid_loss: float  stop_training: bool
             epoch_valid_loss, stop_training = self._run_validation_epoch(epoch)
 
-            print(f"Train Loss: {epoch_train_loss:.2f}")
-            print(f"Valid Loss: {epoch_valid_loss:.2f}")
+            print(f"Train Loss: {epoch_train_loss:.4f}")
+            print(f"Valid Loss: {epoch_valid_loss:.4f}")
 
             self.memory.train_losses.append(epoch_train_loss)
             self.memory.valid_losses.append(epoch_valid_loss)
