@@ -33,7 +33,7 @@ class Config:
         "pixel_dims": ["lat", "lon"],
         "num_workers": 1,
         "seed": 1234,
-        "device": "cpu",
+        "device": "cuda",
         "learning_rate": 1e-2,
         "time_str": "time",
         "run_dir": Path("runs"),

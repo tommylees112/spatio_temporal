@@ -85,8 +85,6 @@ class BaseTrainer:
         else:
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-        assert False
-
     def __repr__(self):
         return pprint.pformat(self.cfg._cfg)
 
