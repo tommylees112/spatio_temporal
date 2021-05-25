@@ -2,6 +2,7 @@ from pathlib import Path
 import xarray as xr
 import pickle
 import argparse
+from typing import Union
 
 #  library imports
 from spatio_temporal.config import Config
@@ -65,18 +66,26 @@ if __name__ == "__main__":
     # ds = xr.open_dataset("data/data_india_full.nc").sortby("time")
 
     ## river level data
-    ds = xr.open_dataset("data/camels_river_level_data.nc")
+    # ds = xr.open_dataset("data/camels_river_level_data.nc")
 
     #  Run Training and Evaluation
+    expt_class: Union[Trainer, Tester] 
     if mode == "train":
         config_file = Path(args["config_file"])
         assert config_file.exists(), f"Expect config file at {config_file}"
 
         cfg = Config(cfg_path=config_file)
 
+        # Load in data
+        ds = xr.open_dataset(cfg.data_path)
+        if cfg.static_data_path is not None:
+            static_data = xr.open_dataset(cfg.static_data_path)
+        else:
+            static_data = None
+
         # Train test split
-        expt_class = trainer = Trainer(cfg, ds)
-        tester = Tester(cfg, ds)
+        expt_class = trainer = Trainer(cfg, ds, static_data=static_data)
+        tester = Tester(cfg, ds, static_data=static_data)
 
         if overfit_test:
             #  run test on training data to check for overfitting
@@ -92,7 +101,15 @@ if __name__ == "__main__":
     else:
         test_dir = Path(args["run_dir"])
         cfg = Config(cfg_path=test_dir / "config.yml")
-        expt_class = tester = Tester(cfg, ds)
+
+        # Load in data
+        ds = xr.open_dataset(cfg.data_path)
+        if cfg.static_data_path is not None:
+            static_data = xr.open_dataset(cfg.static_data_path)
+        else:
+            static_data = None
+
+        expt_class = tester = Tester(cfg, ds, static_data=static_data)
 
     print()
     print(expt_class)

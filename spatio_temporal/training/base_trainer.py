@@ -17,7 +17,7 @@ class BaseTrainer:
         self.optimizer: torch.optim.Optimizer
         self.scheduler: torch.optim.lr_scheduler._LRScheduler
         self.n_epochs = self.cfg.n_epochs
-
+        
     def _set_random_seeds(self):
         if self.cfg.seed is None:
             self.cfg.seed = int(np.random.uniform(low=0, high=1e6))

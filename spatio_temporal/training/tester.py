@@ -12,13 +12,19 @@ from spatio_temporal.training.eval_utils import (
     create_metadata_arrays,
     scatter_plot,
 )
-from spatio_temporal.data.data_utils import (_reshape, train_test_split, _infer_frequency)
+from spatio_temporal.data.data_utils import _reshape, train_test_split, _infer_frequency
 from spatio_temporal.training.train_utils import _to_device, get_model
 from spatio_temporal.data.dataloader import DataLoader
 
 
 class Tester:
-    def __init__(self, cfg: Config, ds: xr.Dataset, subset: str = "test"):
+    def __init__(
+        self,
+        cfg: Config,
+        ds: xr.Dataset,
+        subset: str = "test",
+        static_data: Optional[xr.Dataset] = None,
+    ):
         self.cfg = cfg
 
         self.device = self.cfg.device
@@ -27,7 +33,7 @@ class Tester:
         assert subset in ["test", "train", "validation"]
         self.subset = subset
 
-        self.initialise_data(ds, subset=self.subset)
+        self.initialise_data(ds, subset=self.subset, static_data=static_data)
 
         self.dynamic_input_size = self.test_dl.dynamic_input_size
         self.static_input_size = self.test_dl.static_input_size
@@ -43,7 +49,7 @@ class Tester:
     def __repr__(self):
         return self.cfg._cfg.__repr__()
 
-    def initialise_data(self, ds: xr.Dataset, subset: str = "test") -> None:
+    def initialise_data(self, ds: xr.Dataset, subset: str = "test", static_data: Optional[xr.Dataset] = None) -> None:
         test_ds = train_test_split(ds, cfg=self.cfg, subset=subset)
         #  NOTE: normalizer should be read from the cfg.run_dir directory
         self.test_dl: PixelDataLoader = PixelDataLoader(
@@ -53,6 +59,7 @@ class Tester:
             normalizer=None,
             num_workers=self.cfg.num_workers,
             batch_size=self.cfg.batch_size,
+            static_data=static_data,
         )
 
         period_start = self.cfg._cfg[f"{subset}_start_date"]
@@ -188,7 +195,7 @@ class Tester:
         #     offset = inf_freq * (self.cfg.seq_length + self.cfg.horizon)
 
         # expected_first_time = self.cfg.test_start_date + offset
-    
+
         # assert (
         #     preds.time.min() == None
         # ), "Should have loaded Test Dataset!"
@@ -196,7 +203,7 @@ class Tester:
         # unnormalize values
         if unnormalize:
             normalizer = self.test_dl.dataset.normalizer  # type: ignore
-            preds = normalizer.unnormalize_preds(preds=preds, cfg=self.cfg)
+            preds = normalizer.unnormalize_preds(preds=preds, cfg=self.cfg)  # type: ignore
 
         #  scatter plot the predictions
         if plot:

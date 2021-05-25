@@ -43,7 +43,11 @@ class Memory:
 
 class Trainer(BaseTrainer):
     def __init__(
-        self, cfg: Config, ds: xr.Dataset, _allow_subsequent_nan_losses: int = 5
+        self,
+        cfg: Config,
+        ds: xr.Dataset,
+        _allow_subsequent_nan_losses: int = 5,
+        static_data: Optional[xr.Dataset] = None,
     ):
         super().__init__(cfg=cfg)
 
@@ -62,7 +66,7 @@ class Trainer(BaseTrainer):
         self.cfg.dump_config(self.cfg.run_dir)
 
         #  initialise dataloaders:: self.train_dl; self.valid_dl
-        self.initialise_data(ds)
+        self.initialise_data(ds, static_data=static_data)
         self.dynamic_input_size = self.train_dl.dynamic_input_size
         self.static_input_size = self.train_dl.static_input_size
         self.forecast_input_size = self.train_dl.forecast_input_size
@@ -152,7 +156,7 @@ class Trainer(BaseTrainer):
             cfg=self.cfg, input_size=self.input_size, output_size=self.output_size,
         )
 
-    def initialise_data(self, ds: xr.Dataset, mode: str = "train") -> None:
+    def initialise_data(self, ds: xr.Dataset, static_data: Optional[xr.Dataset] = None) -> None:
         """Load data from DataLoaders and store as attributes
 
         Args:
@@ -177,7 +181,9 @@ class Trainer(BaseTrainer):
             num_workers=self.cfg.num_workers,
             pin_memory=True,
             batch_size=self.cfg.batch_size,
+            static_data=static_data,
         )
+
         assert (
             self.train_dl.dataset.y != {}
         ), f"Train Period loads in no data for period {self.cfg.train_start_date} -- {self.cfg.train_end_date} with seq_length {self.cfg.seq_length}"
@@ -194,6 +200,7 @@ class Trainer(BaseTrainer):
             pin_memory=True,
             batch_size=self.cfg.batch_size,
             normalizer=normalizer,
+            static_data=static_data,
         )
 
     #################################################
@@ -260,7 +267,7 @@ class Trainer(BaseTrainer):
         # TODO: move validation into tester
         # batch the validation data and run validation forward pass
         val_pbar = tqdm(self.valid_dl, desc=f"Validation Epoch {epoch}: ")
-        # set the model to evaluate
+        #  set the model to evaluate
         self.model.eval()
 
         with torch.no_grad():

@@ -46,10 +46,20 @@ class XarrayDataset(Dataset):
         mode: str,
         normalizer: Optional[Normalizer] = None,
         DEBUG: bool = False,
+        static_data: Optional[xr.Dataset] = None,
     ):
         self.cfg = cfg
+        
+        if self.cfg.static_data_path is not None:
+            assert static_data is not None, "Expect static dataset to be provided"
+
         # stack pixel_dims to one dimension ("sample")
         stacked, sample = _stack_xarray(data, self.cfg.pixel_dims)
+        stacked_static: Optional[xr.Dataset]
+        if static_data is not None:
+            stacked_static, _ = _stack_xarray(static_data, self.cfg.pixel_dims)
+        else:
+            stacked_static = None
 
         self.mode = mode
         self.is_train = self.mode == "train"
@@ -70,11 +80,23 @@ class XarrayDataset(Dataset):
                 self.cfg.target_variable not in self.cfg.forecast_variables  # type: ignore
             ), "Cannot include target as a forecast variable (leakage)"
 
+        # -------- data ----------
+        # The data as it is loaded into the models
         ds: xr.Dataset = stacked
+        static: Optional[xr.Dataset] = stacked_static
+
+        # -------- normalization ----------
+        #  TODO: make normalizer optional (e.g. for Runoff data)
+        #  TODO: normalize only specific variables, e.g. inputs not outputs
+        ds = self.run_normalization(ds=ds, normalizer=normalizer)
+        if static is not None:
+            static = self.run_static_normalization(ds=static)
 
         # TODO: allow static inputs
         #  TODO: replace "x_s" with "x_one_hot"
         self.static_inputs = cfg.static_inputs
+        self.df_static: Optional[pd.DataFrame]
+
         if self.static_inputs == "embedding":
             self.df_static = pd.DataFrame(
                 torch.nn.functional.one_hot(torch.arange(ds.sample.size)).numpy(),
@@ -82,14 +104,16 @@ class XarrayDataset(Dataset):
                 index=ds.sample.values,
             )
             self.static_inputs = self.df_static.columns
-
-        #  TODO: make normalizer optional (e.g. for Runoff data)
-        #  TODO: normalize only specific variables, e.g. inputs not outputs
-        ds = self.run_normalization(ds=ds, normalizer=normalizer)
+        elif isinstance(self.static_inputs, list):
+            assert static is not None, "Expected static data to be passed to Dataset initialisation"
+            self.df_static = static.to_dataframe()
+        else:
+            self.df_static = None
 
         if self.DEBUG:
             # save the stacked dataset to memory to check dataloading
             self.ds = ds
+            self.static = static
 
         # information for building models
         self.horizon = cfg.horizon
@@ -132,28 +156,42 @@ class XarrayDataset(Dataset):
         # 3. Store y, x_d, x_s
         self.create_lookup_table(ds)
 
-    def run_normalization(
-        self,
-        ds: xr.Dataset,
-        collapse_dims: List[str] = ["time"],
-        normalizer: Optional[Normalizer] = None,
-    ) -> xr.Dataset:
+    def _run_normalization(self, ds: xr.Dataset, collapse_dims: Optional[List], static: bool = False, normalizer: Optional[Normalizer] = None,) -> Tuple[xr.Dataset, Normalizer]:
+        filename: str = "static_normalizer.pkl" if static else "normalizer.pkl"
         if self.mode == "train":
             normalizer = initialize_normalizer(
                 ds=ds, cfg=self.cfg, collapse_dims=collapse_dims, normalizer=normalizer
             )
-
-            # save the normalizer into the run directory
-            pickle.dump(normalizer, (self.cfg.run_dir / "normalizer.pkl").open("wb"))
+            pickle.dump(normalizer, (self.cfg.run_dir / filename).open("wb"))
+        
         else:
+            #  Normalizer already fit on the training data & saved to disk
             if normalizer is None:
                 normalizer = pickle.load(
-                    (self.cfg.run_dir / "normalizer.pkl").open("rb")
+                    (self.cfg.run_dir / filename).open("rb")
                 )
+        
+        ds = normalizer.transform(ds, variables=self.cfg.normalize_variables)
 
+        return ds, normalizer
+
+    def run_static_normalization(
+        self,
+        ds: xr.Dataset,
+        normalizer: Optional[Normalizer] = None,
+    ) -> xr.Dataset:
+        ds, normalizer = self._run_normalization(ds=ds, static=True, collapse_dims=None, normalizer=normalizer)
+        self.static_normalizer = normalizer
+        return ds
+    
+    def run_normalization(
+        self,
+        ds: xr.Dataset,
+        collapse_dims: Optional[List[str]] = ["time"],
+        normalizer: Optional[Normalizer] = None,
+    ) -> xr.Dataset:
+        ds, normalizer = self._run_normalization(ds=ds, static=False, collapse_dims=collapse_dims, normalizer=normalizer)
         self.normalizer = normalizer
-        ds = self.normalizer.transform(ds)
-
         return ds
 
     def store_data(
@@ -205,11 +243,10 @@ class XarrayDataset(Dataset):
             x_d = df_native[self.inputs].values
             y = df_native[self.target].values
 
-            #  TODO: deal with static inputs
             if self.static_inputs is not None:
                 # index = pixel; columns = variables
                 x_s = self.df_static.loc[pixel, self.static_inputs].values
-                #  TODO: check if error in shaping
+                #  check if error in shaping
                 # np.tile(x_s, y.size).reshape(y.size, x_s.size)
             else:
                 x_s = None

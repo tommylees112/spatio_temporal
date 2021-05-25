@@ -69,3 +69,7 @@ encode_doys: True
 
 forecast_variables: 
   - feature
+
+static_inputs: 
+  - static_const
+  - static_rand
