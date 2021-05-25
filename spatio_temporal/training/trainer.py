@@ -112,6 +112,10 @@ class Trainer(BaseTrainer):
             loss_fn = RMSELoss()
         if self.cfg.loss == "huber":
             loss_fn = nn.SmoothL1Loss()
+        if self.cfg.loss == "NSE":
+            # TODO: implement nse loss function
+            assert False
+            loss_fn = nn.MSELoss()
 
         self.loss_fn = loss_fn
 
