@@ -170,9 +170,11 @@ def validate_samples(
         #  NOTE: indexing here needs to be the same as in dataloader.__getitem__
         #  3. NaN in the outputs (only for training period)
         if mode != "test":
-            _y = y[target_index]
+            # _y = y[target_index]
+            _y = y[start_input_idx: end_input_idx_plus_1]
 
-            if np.isnan(_y):
+            # if np.isnan(_y):
+            if np.prod(np.array(_y.shape)) > 0 and np.all(np.isnan(_y)):
                 flag[current_index] = 0
                 continue
 

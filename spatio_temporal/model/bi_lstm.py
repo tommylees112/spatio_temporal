@@ -19,8 +19,9 @@ class BiLSTM(nn.Module):
         hidden_size: int,
         output_size: int,
         forecast_horizon: int,
-        dropout_rate: float = 0.4,
+        dropout_rate: float = 0,
         initial_forget_bias: Optional[float] = None,
+        FINAL_OUTPUT: bool = False,
     ):
         super().__init__()
 
@@ -30,6 +31,7 @@ class BiLSTM(nn.Module):
         self.output_size = output_size
         self.forecast_horizon = forecast_horizon
         self.dropout = nn.Dropout(p=dropout_rate)
+        self.FINAL_OUTPUT = FINAL_OUTPUT
 
         self.num_layers = 1
 
@@ -106,10 +108,13 @@ class BiLSTM(nn.Module):
         # out: [batch_size, seq_length, hidden_size*2]
         lstm_output, (h_n, c_n) = self.lstm(x_d, (h0, c0))
 
-        # final_output = [batch_size, 1, hidden_size]
-        # only return the predictions from the final step in sequence_length
-        final_output = lstm_output[:, -1:, :]
-        y_hat = self.head(self.dropout(final_output))
+        if self.FINAL_OUTPUT:
+            # final_output = [batch_size, 1, hidden_size]
+            # only return the predictions from the final step in sequence_length
+            final_output = lstm_output[:, -1:, :]
+            y_hat = self.head(self.dropout(final_output))
+        else:
+            y_hat = self.head(self.dropout(lstm_output))
 
         pred = {"h_n": h_n, "c_n": c_n, "y_hat": y_hat}
         return pred

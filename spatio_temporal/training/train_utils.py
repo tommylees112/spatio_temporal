@@ -33,6 +33,7 @@ def get_model(input_size: int, output_size: int, cfg: Config) -> nn.Module:
             output_size=output_size,
             forecast_horizon=cfg.horizon,
             initial_forget_bias=cfg.initial_forget_bias,
+            dropout_rate=cfg.dropout,
         ).to(cfg.device)
     elif model_str == "bilstm":
         model = BiLSTM(
@@ -41,6 +42,7 @@ def get_model(input_size: int, output_size: int, cfg: Config) -> nn.Module:
             output_size=output_size,
             forecast_horizon=cfg.horizon,
             initial_forget_bias=cfg.initial_forget_bias,
+            dropout_rate=cfg.dropout,
         ).to(cfg.device)
 
     else:

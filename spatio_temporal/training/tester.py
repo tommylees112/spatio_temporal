@@ -142,9 +142,10 @@ class Tester:
                 #  -- Recreate the output data with metadata -- #
                 pixels, times, horizons = create_metadata_arrays(data, self.test_dl)
 
-                #  TODO: check that these reshapes work correctly
-                sim = sim.reshape(pixels.shape)
-                obs = obs.reshape(pixels.shape)
+                #  Get the final prediction (only interested in the final day)
+                #  TODO: ask freddy and daniel what's going on here ...
+                sim = sim[:, -1, :].reshape(pixels.shape)
+                obs = obs[:, -1, :].reshape(pixels.shape)
 
                 out["horizon"].append(horizons)
                 out["time"].append(times)

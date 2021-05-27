@@ -88,6 +88,7 @@ class TestPipeline:
 
         cfg = Config(Path("tests/testconfigs/test_config.yml"))
         cfg._cfg["static_inputs"] = ["static_const", "static_rand"]
+        cfg._cfg["seq_length"] = 2
 
         #  Train
         trainer = Trainer(cfg, ds, static_data=static_data)
@@ -141,6 +142,10 @@ class TestPipeline:
         cfg._cfg["loss"] = "NSE"
         cfg._cfg["dynamic_normalization"] = False
         cfg._cfg["static_normalization"] = True
+        cfg._cfg["seq_length"] = 2
+        cfg._cfg["input_variables"] = ['temperature', 'precipitation', "shortwave_rad"]
+        cfg._cfg["model"] = "bilstm"
+
 
         ds, static = load_data(cfg)
 

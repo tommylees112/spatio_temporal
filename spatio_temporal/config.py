@@ -43,7 +43,7 @@ class Config:
         "validate_every_n": 1,
         "scheduler": None,
         "model": "lstm",
-        "dropout": 0.4,
+        "dropout": 0,
         "constant_mean": None,
         "constant_std": None,
         "early_stopping": None,

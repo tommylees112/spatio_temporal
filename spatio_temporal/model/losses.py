@@ -18,8 +18,12 @@ class RMSELoss(nn.Module):
     def __init__(self):
         super(RMSELoss, self).__init__()
 
-    def forward(self, x, y, epsilon: float = 1e-4):
-        mse_loss = F.mse_loss(x, y)
+    def forward(self, y_pred, y_true, epsilon: float = 1e-4):
+        mask = ~torch.isnan(y_true)
+        y_pred = y_pred[mask]
+        y_true = y_true[mask]
+
+        mse_loss = F.mse_loss(y_pred, y_true)
         if mse_loss == 0:
             mse_loss = mse_loss + epsilon
         loss = torch.sqrt(mse_loss)
@@ -58,8 +62,13 @@ class NSELoss(nn.Module):
         torch.Tenor
             The (batch-wise) NSE Loss
         """
+        mask = ~torch.isnan(y_true)
+        y_pred = y_pred[mask]
+        y_true = y_true[mask]
+
         squared_error = (y_pred - y_true) ** 2
         weights = 1 / (q_stds + self.eps) ** 2
         scaled_loss = weights * squared_error
 
         return torch.mean(scaled_loss)
+

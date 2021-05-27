@@ -322,8 +322,9 @@ class XarrayDataset(Dataset):
         else:
             x_f = torch.from_numpy(np.array([]))
 
-        #  TARGET DATA
-        y = self.y[pixel][target_index].reshape(-1, 1)
+        #  TARGET DATA 
+        # y = self.y[pixel][target_index].reshape(-1, 1)
+        y = self.y[pixel][start_input_idx: end_input_idx_plus_1].reshape(-1, 1)
 
         if self.static_inputs is not None:
             # torch.cat((self.x_s[pixel]), dim=-1)
