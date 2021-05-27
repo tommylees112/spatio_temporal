@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import torch.optim as optim
-
+from typing import Optional
 # from spatio_temporal.model.base import BaseNN
 
 
@@ -14,6 +14,8 @@ class LSTM(nn.Module):
         output_size: int,
         forecast_horizon: int,
         dropout_rate: float = 0.4,
+        initial_forget_bias: Optional[float] = None,
+
     ):
         super().__init__()
 
@@ -41,6 +43,14 @@ class LSTM(nn.Module):
 
         # initialize weights
         self.initialize_weights()
+
+        # forget gate bias to be ON (if +ve)
+        self._reset_parameters(initial_forget_bias=initial_forget_bias)
+
+    def _reset_parameters(self, initial_forget_bias: Optional[float]):
+        """Special initialization of certain model weights."""
+        if initial_forget_bias is not None:
+            self.lstm.bias_hh_l0.data[self.cfg.hidden_size:2 * self.cfg.hidden_size] = self.cfg.initial_forget_bias
 
     def initialize_weights(self):
         # We are initializing the weights here with Xavier initialisation

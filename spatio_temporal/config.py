@@ -52,6 +52,9 @@ class Config:
         "static_data_path": None,
         "data_path": None,
         "normalize_variables": None,
+        "initial_forget_bias": None,
+        "dynamic_normalization": True,
+        "static_normalization": True,
     }
 
     def __init__(self, cfg_path: Path):
@@ -413,3 +416,17 @@ class Config:
     @property
     def normalize_variables(self) -> Optional[List[str]]:
         return self.get_property_with_defaults("normalize_variables")
+
+    @property
+    def initial_forget_bias(self) -> Optional[float]:
+        return self.get_property_with_defaults("initial_forget_bias")
+
+    @property
+    def dynamic_normalization(self) -> bool:
+        return self.get_property_with_defaults("dynamic_normalization")
+
+    @property
+    def static_normalization(self) -> bool:
+        return self.get_property_with_defaults("static_normalization")
+
+

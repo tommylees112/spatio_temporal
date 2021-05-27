@@ -66,14 +66,18 @@ class TestPipeline:
         cfg = Config(test_dir / "config.yml")
         assert len([f for f in created_files if "model_epoch" in f]) == cfg.n_epochs
 
-        if cfg.static_inputs is not None:
+        # check the normalizers created
+        if (cfg.static_inputs is not None) and (cfg.static_normalization):
             assert (
                 "static_normalizer.pkl" in created_files
             ), f"Expected the static normalizer to be saved. Not found in: {pformat(created_files)}"
 
-        assert (
-            "normalizer.pkl" in created_files
-        ), f"Expected the normalizer to be saved. Not found in: {pformat(created_files)}"
+        if cfg.dynamic_normalization:
+            assert (
+                "normalizer.pkl" in created_files
+            ), f"Expected the normalizer to be saved. Not found in: {pformat(created_files)}"
+        
+        # check the predictions saved to netcdf
         assert (
             len([f for f in test_dir.glob("*.nc")]) > 0
         ), "Output NetCDF not saved to disk!"
@@ -132,6 +136,11 @@ class TestPipeline:
         cfg._cfg["static_data_path"] = Path("data/camels_static.nc")
         cfg._cfg["static_inputs"] = ["p_mean", "pet_mean", "area", "gauge_elev"]
         cfg._cfg["n_epochs"] = 3
+        cfg._cfg["intial_forget_bias"] = 3
+        cfg._cfg["clip_gradient_norm"] = 1
+        cfg._cfg["loss"] = "NSE"
+        cfg._cfg["dynamic_normalization"] = False
+        cfg._cfg["static_normalization"] = True
 
         ds, static = load_data(cfg)
 
@@ -166,14 +175,14 @@ if __name__ == "__main__":
     # losses, preds = t.test_kenya_vci_example()
     losses, preds = t.test_runoff_example(tmp_path)
 
-    #  plot the outputs
-    import matplotlib.pyplot as plt
+    # #  plot the outputs
+    # import matplotlib.pyplot as plt
 
-    f, ax = plt.subplots()
-    ax.plot(losses[0], label="Train")
-    ax.plot(losses[1], label="Validation")
-    ax.set_ylabel("MSE Loss")
-    ax.set_xlabel("Epoch")
-    plt.legend()
+    # f, ax = plt.subplots()
+    # ax.plot(losses[0], label="Train")
+    # ax.plot(losses[1], label="Validation")
+    # ax.set_ylabel("MSE Loss")
+    # ax.set_xlabel("Epoch")
+    # plt.legend()
 
     t.check_output_files(tmp_path)

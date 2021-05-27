@@ -32,6 +32,7 @@ def get_model(input_size: int, output_size: int, cfg: Config) -> nn.Module:
             hidden_size=cast(int, cfg.hidden_size),  #  make mypy happy
             output_size=output_size,
             forecast_horizon=cfg.horizon,
+            initial_forget_bias=cfg.initial_forget_bias,
         ).to(cfg.device)
     elif model_str == "bilstm":
         model = BiLSTM(
@@ -39,6 +40,7 @@ def get_model(input_size: int, output_size: int, cfg: Config) -> nn.Module:
             hidden_size=cast(int, cfg.hidden_size),  # make mypy happy
             output_size=output_size,
             forecast_horizon=cfg.horizon,
+            initial_forget_bias=cfg.initial_forget_bias,
         ).to(cfg.device)
 
     else:

@@ -208,7 +208,8 @@ class Tester:
         # unnormalize values
         if unnormalize:
             normalizer = self.test_dl.dataset.normalizer  # type: ignore
-            preds = normalizer.unnormalize_preds(preds=preds, cfg=self.cfg)  # type: ignore
+            if normalizer is not None:
+                preds = normalizer.unnormalize_preds(preds=preds, cfg=self.cfg)  # type: ignore
 
         #  scatter plot the predictions
         if plot:

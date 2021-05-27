@@ -10,7 +10,7 @@ from torch import Tensor
 import torch.nn as nn
 
 #  library imports
-from spatio_temporal.model.losses import RMSELoss
+from spatio_temporal.model.losses import RMSELoss, NSELoss
 from spatio_temporal.training.base_trainer import BaseTrainer
 from spatio_temporal.data.dataloader import PixelDataLoader
 from spatio_temporal.config import Config
@@ -114,8 +114,7 @@ class Trainer(BaseTrainer):
             loss_fn = nn.SmoothL1Loss()
         if self.cfg.loss == "NSE":
             # TODO: implement nse loss function
-            assert False
-            loss_fn = nn.MSELoss()
+            loss_fn = NSELoss()
 
         self.loss_fn = loss_fn
 
@@ -238,7 +237,12 @@ class Trainer(BaseTrainer):
             # measure loss on forecasts
             if not (y_hat["y_hat"].ndim == y.ndim):
                 y = y.squeeze(0)
-            loss = self.loss_fn(y_hat["y_hat"], y)
+            
+            if self.cfg.loss == "NSE":
+                # must pass the target std to weight the loss by target std
+                loss = self.loss_fn(y_hat["y_hat"], y, data["target_std"])
+            else:
+                loss = self.loss_fn(y_hat["y_hat"], y)
 
             if torch.isnan(loss):
                 nan_count += 1
@@ -276,6 +280,7 @@ class Trainer(BaseTrainer):
         # TODO: move validation into tester
         # batch the validation data and run validation forward pass
         val_pbar = tqdm(self.valid_dl, desc=f"Validation Epoch {epoch}: ")
+        
         #  set the model to evaluate
         self.model.eval()
 
@@ -289,7 +294,11 @@ class Trainer(BaseTrainer):
                 # run forward pass
                 y_val = data["y"]
                 y_hat_val = self.model(data)
-                val_loss = self.loss_fn(y_hat_val["y_hat"], y_val)
+                if self.cfg.loss == "NSE":
+                    # must pass the target std to weight the loss by target std
+                    val_loss = self.loss_fn(y_hat_val["y_hat"], y_val, data["target_std"])
+                else:
+                    val_loss = self.loss_fn(y_hat_val["y_hat"], y_val)
 
                 valid_loss.append(val_loss.item())
 
