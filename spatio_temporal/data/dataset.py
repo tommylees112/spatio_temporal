@@ -361,7 +361,7 @@ class XarrayDataset(Dataset):
 
     def _calculate_per_pixel_target_std(self, ds: xr.Dataset):
         pixels = ds["sample"].values.tolist()
-        for pixel in tqdm(pixels):
+        for pixel in pixels:
             # select pixel target data
             target = ds.sel(sample=pixel)[self.cfg.target_variable].values
             # calculate std for each target
