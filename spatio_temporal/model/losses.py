@@ -3,6 +3,10 @@ import torch
 import torch.nn.functional as F
 
 
+# TODO: implement subsetting in time (i.e. only calculate loss on the final timestep)
+# TODO: talk to Freddy & Daniel re: subsetting in time
+# https://github.com/neuralhydrology/neuralhydrology/blob/ffbc60043dec4e1cfc1634cd70917291c1ee77be/neuralhydrology/training/loss.py#L125-L131
+
 class CustomLoss(nn.Module):
     """https://github.com/IgorSusmelj/pytorch-styleguide"""
 
@@ -62,6 +66,7 @@ class NSELoss(nn.Module):
         torch.Tenor
             The (batch-wise) NSE Loss
         """
+        # [batch_size, seq_length, 1]
         mask = ~torch.isnan(y_true)
         y_pred = y_pred[mask]
         y_true = y_true[mask]
