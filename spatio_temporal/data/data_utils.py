@@ -8,6 +8,7 @@ from torch import Tensor
 from collections import defaultdict
 from spatio_temporal.config import Config
 from spatio_temporal.data.normalizer import Normalizer
+from tqdm import tqdm
 
 
 def encode_sample_str_as_int(
@@ -204,7 +205,8 @@ def _reshape(array: np.ndarray) -> np.ndarray:
 
 def load_all_data_from_dl_into_memory(dl: Any) -> Dict[str, np.ndarray]:
     out: DefaultDict[str, List] = defaultdict(list)
-    for data in dl:
+    pbar1 = tqdm(dl, desc="Extracting data from DataLoader")
+    for data in pbar1:
         # TODO: don't do this on GPU ..?
         out["x_d"].append(data["x_d"].detach().cpu().numpy())
         out["y"].append(data["y"].detach().cpu().numpy())
@@ -212,7 +214,8 @@ def load_all_data_from_dl_into_memory(dl: Any) -> Dict[str, np.ndarray]:
         out["index"].append(data["meta"]["index"].detach().cpu().numpy())
 
     return_dict: Dict[str, np.ndarray] = {}
-    for key in out.keys():
+    pbar2 = tqdm(out.keys(), desc="Concatenating data & writing to return_dict")
+    for key in pbar2:
         # concatenate over batch dimension (dimension = 0)
         var_ = np.concatenate(out[key])
         var_ = var_.squeeze() if var_.ndim == 3 else var_
