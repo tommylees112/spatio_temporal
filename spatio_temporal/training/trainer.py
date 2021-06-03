@@ -222,8 +222,9 @@ class Trainer(BaseTrainer):
         #  batch the training data and iterate over batches
         pbar = tqdm(self.train_dl, desc=f"Training Epoch {epoch}: ")
         for data in pbar:
-            #  to GPU
+            # make mypy happy...
             data = cast(Union[Dict[str, Tensor], Dict[str, Dict[str, Tensor]]], data)
+            #  to GPU
             data = _to_device(data, self.device)
 
             y = data["y"]
@@ -232,17 +233,24 @@ class Trainer(BaseTrainer):
             self.optimizer.zero_grad()
 
             # forward pass
-            y_hat = self.model(data)
+            preds = self.model(data)
 
+            # TODO: pass in data and preds to LOSS object
+            y_hat = preds["y_hat"]
+            
             # measure loss on forecasts
-            if not (y_hat["y_hat"].ndim == y.ndim):
+            if not (y_hat.ndim == y.ndim):
                 y = y.squeeze(0)
             
+            #  TODO: subset the times you want to optimize for
+            # y = y[:, self.cfg.seq_length:, :]
+            # y_hat = y_hat[:, self.cfg.seq_length:, :]
+
             if self.cfg.loss == "NSE":
                 # must pass the target std to weight the loss by target std
-                loss = self.loss_fn(y_hat["y_hat"], y, data["target_std"])
+                loss = self.loss_fn(y_hat, y, data["target_std"])
             else:
-                loss = self.loss_fn(y_hat["y_hat"], y)
+                loss = self.loss_fn(y_hat, y)
 
             if torch.isnan(loss):
                 nan_count += 1
@@ -293,12 +301,13 @@ class Trainer(BaseTrainer):
 
                 # run forward pass
                 y_val = data["y"]
-                y_hat_val = self.model(data)
+                preds = self.model(data)
+                y_hat_val = preds["y_hat"]
                 if self.cfg.loss == "NSE":
                     # must pass the target std to weight the loss by target std
-                    val_loss = self.loss_fn(y_hat_val["y_hat"], y_val, data["target_std"])
+                    val_loss = self.loss_fn(y_hat_val, y_val, data["target_std"])
                 else:
-                    val_loss = self.loss_fn(y_hat_val["y_hat"], y_val)
+                    val_loss = self.loss_fn(y_hat_val, y_val)
 
                 valid_loss.append(val_loss.item())
 

@@ -142,8 +142,10 @@ class Tester:
                 #  -- Recreate the output data with metadata -- #
                 pixels, times, horizons = create_metadata_arrays(data, self.test_dl)
 
-                #  Get the final prediction (only interested in the final day)
+                #  Get the final horizon predictions (only interested in the final few)
                 #  TODO: ask freddy and daniel what's going on here ...
+                #  TODO: how to implement forecast horizon ???
+                # horizon = 1 if self.cfg.horizon < 1 else self.cfg.horizon
                 sim = sim[:, -1, :].reshape(pixels.shape)
                 obs = obs[:, -1, :].reshape(pixels.shape)
 
