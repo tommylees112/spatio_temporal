@@ -71,6 +71,8 @@ class TestDataLoader:
         cfg._cfg["encode_doys"] = True
         cfg._cfg["static_inputs"] = "embedding"
         cfg._cfg["forecast_variables"] = cfg.input_variables
+        cfg._cfg["dynamic_normalization"] = False
+        cfg._cfg["static_normalization"] = False
         #  create temporary run directory (usually done by the )
         create_and_assign_temp_run_path_to_config(cfg, tmp_path)
         #  create dummy dataset

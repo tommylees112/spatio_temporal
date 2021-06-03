@@ -42,7 +42,7 @@ class TestPipeline:
         else:
             dataloader = trainer_tester.test_dl
 
-        pixels = [k for k in dataloader.dataset.x_s.keys()]
+        pixels = [k for k in dataloader.dataset.x_d.keys()]
         pixel = np.random.choice(pixels)
 
         if cfg.static_inputs is not None:
@@ -52,9 +52,17 @@ class TestPipeline:
             )
 
         # check dynamic size
+        expected_dyn_size = len(cfg.input_variables) + 1 if cfg.autoregressive  else len(cfg.input_variables) 
+        expected_dyn_size = (
+            expected_dyn_size + len(cfg.forecast_variables) 
+            if cfg.forecast_variables is not None 
+            else expected_dyn_size
+        )
+        expected_dyn_size = expected_dyn_size + 1 if cfg.encode_doys else expected_dyn_size
+
         assert dataloader.dataset.x_d[pixel].numpy().shape == (
             int(data.time.values.shape[0]),
-            len(cfg.input_variables),
+            expected_dyn_size,
         )
 
     @staticmethod
@@ -82,13 +90,17 @@ class TestPipeline:
             len([f for f in test_dir.glob("*.nc")]) > 0
         ), "Output NetCDF not saved to disk!"
 
-    def test_linear_example(self):
+    def test_linear_example(self, tmp_path):
         ds = create_linear_ds(epsilon_sigma=10)
         static_data = create_static_example_data(ds)
 
         cfg = Config(Path("tests/testconfigs/test_config.yml"))
+        create_and_assign_temp_run_path_to_config(cfg, tmp_path)
         cfg._cfg["static_inputs"] = ["static_const", "static_rand"]
         cfg._cfg["seq_length"] = 2
+        cfg._cfg["num_workers"] = 1
+        cfg._cfg["horizon"] = 2
+        cfg._cfg["n_epochs"] = 3
 
         #  Train
         trainer = Trainer(cfg, ds, static_data=static_data)
@@ -176,9 +188,9 @@ if __name__ == "__main__":
     print(f"--- Writing to: {tmp_path} ---")
 
     t = TestPipeline()
-    # t.test_linear_example()
-    # losses, preds = t.test_kenya_vci_example()
-    losses, preds = t.test_runoff_example(tmp_path)
+    t.test_linear_example(tmp_path)
+    # losses, preds = t.test_kenya_vci_example(tmp_path)
+    # losses, preds = t.test_runoff_example(tmp_path)
 
     # #  plot the outputs
     # import matplotlib.pyplot as plt
