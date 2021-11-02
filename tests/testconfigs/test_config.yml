@@ -40,7 +40,7 @@ horizon: 1
 optimizer: Adam
 
 # specify loss [MSE, NSE, RMSE]
-loss: MSE
+loss: NSE
 
 # number of parallel workers used by the dataloaders
 num_workers: 1

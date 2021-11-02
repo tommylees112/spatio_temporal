@@ -10,7 +10,7 @@ from torch import Tensor
 import torch.nn as nn
 
 #  library imports
-from spatio_temporal.model.losses import RMSELoss
+from spatio_temporal.model.losses import RMSELoss, NSELoss
 from spatio_temporal.training.base_trainer import BaseTrainer
 from spatio_temporal.data.dataloader import PixelDataLoader
 from spatio_temporal.config import Config
@@ -114,8 +114,7 @@ class Trainer(BaseTrainer):
             loss_fn = nn.SmoothL1Loss()
         if self.cfg.loss == "NSE":
             # TODO: implement nse loss function
-            assert False
-            loss_fn = nn.MSELoss()
+            loss_fn = NSELoss()
 
         self.loss_fn = loss_fn
 
@@ -223,8 +222,9 @@ class Trainer(BaseTrainer):
         #  batch the training data and iterate over batches
         pbar = tqdm(self.train_dl, desc=f"Training Epoch {epoch}: ")
         for data in pbar:
-            #  to GPU
+            # make mypy happy...
             data = cast(Union[Dict[str, Tensor], Dict[str, Dict[str, Tensor]]], data)
+            #  to GPU
             data = _to_device(data, self.device)
 
             y = data["y"]
@@ -233,12 +233,24 @@ class Trainer(BaseTrainer):
             self.optimizer.zero_grad()
 
             # forward pass
-            y_hat = self.model(data)
+            preds = self.model(data)
 
+            # TODO: pass in data and preds to LOSS object
+            y_hat = preds["y_hat"]
+            
             # measure loss on forecasts
-            if not (y_hat["y_hat"].ndim == y.ndim):
+            if not (y_hat.ndim == y.ndim):
                 y = y.squeeze(0)
-            loss = self.loss_fn(y_hat["y_hat"], y)
+            
+            #  TODO: subset the times you want to optimize for
+            # y = y[:, self.cfg.seq_length:, :]
+            # y_hat = y_hat[:, self.cfg.seq_length:, :]
+
+            if self.cfg.loss == "NSE":
+                # must pass the target std to weight the loss by target std
+                loss = self.loss_fn(y_hat, y, data["target_std"])
+            else:
+                loss = self.loss_fn(y_hat, y)
 
             if torch.isnan(loss):
                 nan_count += 1
@@ -276,6 +288,7 @@ class Trainer(BaseTrainer):
         # TODO: move validation into tester
         # batch the validation data and run validation forward pass
         val_pbar = tqdm(self.valid_dl, desc=f"Validation Epoch {epoch}: ")
+        
         #  set the model to evaluate
         self.model.eval()
 
@@ -288,8 +301,13 @@ class Trainer(BaseTrainer):
 
                 # run forward pass
                 y_val = data["y"]
-                y_hat_val = self.model(data)
-                val_loss = self.loss_fn(y_hat_val["y_hat"], y_val)
+                preds = self.model(data)
+                y_hat_val = preds["y_hat"]
+                if self.cfg.loss == "NSE":
+                    # must pass the target std to weight the loss by target std
+                    val_loss = self.loss_fn(y_hat_val, y_val, data["target_std"])
+                else:
+                    val_loss = self.loss_fn(y_hat_val, y_val)
 
                 valid_loss.append(val_loss.item())
 
@@ -356,8 +374,8 @@ class Trainer(BaseTrainer):
             #   epoch_valid_loss: float  stop_training: bool
             epoch_valid_loss, stop_training = self._run_validation_epoch(epoch)
 
-            print(f"Train Loss: {epoch_train_loss:.2f}")
-            print(f"Valid Loss: {epoch_valid_loss:.2f}")
+            print(f"Train Loss: {epoch_train_loss:.4f}")
+            print(f"Valid Loss: {epoch_valid_loss:.4f}")
 
             self.memory.train_losses.append(epoch_train_loss)
             self.memory.valid_losses.append(epoch_valid_loss)

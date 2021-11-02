@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import torch.optim as optim
-
+from typing import Optional
 # from spatio_temporal.model.base import BaseNN
 
 
@@ -13,7 +13,9 @@ class LSTM(nn.Module):
         hidden_size: int,
         output_size: int,
         forecast_horizon: int,
-        dropout_rate: float = 0.4,
+        dropout_rate: float = 0,
+        initial_forget_bias: Optional[float] = None,
+        FINAL_OUTPUT: bool = False,
     ):
         super().__init__()
 
@@ -23,6 +25,7 @@ class LSTM(nn.Module):
         self.output_size = output_size
         self.forecast_horizon = forecast_horizon
         self.dropout = nn.Dropout(p=dropout_rate)
+        self.FINAL_OUTPUT = FINAL_OUTPUT
 
         self.num_layers = 1
 
@@ -41,6 +44,14 @@ class LSTM(nn.Module):
 
         # initialize weights
         self.initialize_weights()
+
+        # forget gate bias to be ON (if +ve)
+        self._reset_parameters(initial_forget_bias=initial_forget_bias)
+
+    def _reset_parameters(self, initial_forget_bias: Optional[float]):
+        """Special initialization of certain model weights."""
+        if initial_forget_bias is not None:
+            self.lstm.bias_hh_l0.data[self.hidden_size:2 * self.hidden_size] = initial_forget_bias
 
     def initialize_weights(self):
         # We are initializing the weights here with Xavier initialisation
@@ -97,6 +108,9 @@ class LSTM(nn.Module):
             # concatenate the forecast variables as new columns
             x_d = torch.cat([target, x_f], dim=-1)
 
+        # INPUT layer = None
+        # input_size=x_d.size(0), hidden_sizes=[]
+
         # Set initial states [1, batch_size, hidden_size]
         h0 = torch.zeros(self.num_layers, x_d.size(0), self.hidden_size).to(x_d.device)
         c0 = torch.zeros(self.num_layers, x_d.size(0), self.hidden_size).to(x_d.device)
@@ -104,10 +118,14 @@ class LSTM(nn.Module):
         #  lstm_output = (batch_size, seq_length, hidden_size)
         lstm_output, (h_n, c_n) = self.lstm(x_d, (h0, c0))
 
-        # final_output = [batch_size, 1, hidden_size]
-        # only return the predictions from the final step in sequence_length
-        final_output = lstm_output[:, -1:, :]
-        y_hat = self.head(self.dropout(final_output))
+        if self.FINAL_OUTPUT:
+            # final_output = [batch_size, 1, hidden_size]
+            # only return the predictions from the final step in sequence_length
+            final_output = lstm_output[:, -1:, :]
+            y_hat = self.head(self.dropout(final_output))
+        else:
+            y_hat = self.head(self.dropout(lstm_output))
 
         pred = {"h_n": h_n, "c_n": c_n, "y_hat": y_hat}
+
         return pred

@@ -86,11 +86,17 @@ class XarrayDataset(Dataset):
         static: Optional[xr.Dataset] = stacked_static
 
         #  -------- normalization ----------
-        #  TODO: make normalizer optional (e.g. for Runoff data)
-        #  TODO: normalize only specific variables, e.g. inputs not outputs
-        ds = self.run_normalization(ds=ds, normalizer=normalizer)
-        if static is not None:
+        if self.cfg.dynamic_normalization:
+            #  TODO: make normalizer optional (e.g. for Runoff data)
+            #  TODO: normalize only specific variables, e.g. inputs not outputs
+            ds = self.run_normalization(ds=ds, normalizer=normalizer)
+        else:
+            self.normalizer = None
+        
+        if (static is not None) and (self.cfg.static_normalization):
             static = self.run_static_normalization(ds=static)
+        else:
+            self.static_normalizer = None
 
         # TODO: allow static inputs
         #  TODO: replace "x_s" with "x_one_hot"
@@ -152,6 +158,11 @@ class XarrayDataset(Dataset):
         self.times: Dict[str, np.ndarray] = {}
         self.x_s: Dict[str, Optional[np.ndarray]] = {}
         self.x_f: Dict[str, Optional[np.ndarray]] = {}
+        self.target_std: Dict[str, Optional[np.ndarray]] = {}
+
+        # get the std of the target for each pixel
+        # only needed for some losses (NSE)
+        self._calculate_per_pixel_target_std(ds)
 
         # 1. Check for missing data
         # 2. Store int -> data index
@@ -311,14 +322,21 @@ class XarrayDataset(Dataset):
         else:
             x_f = torch.from_numpy(np.array([]))
 
-        #  TARGET DATA
-        y = self.y[pixel][target_index].reshape(-1, 1)
+        #  TARGET DATA 
+        # y = self.y[pixel][target_index].reshape(-1, 1)
+        y = self.y[pixel][start_input_idx: target_index + 1].reshape(-1, 1)
 
         if self.static_inputs is not None:
             # torch.cat((self.x_s[pixel]), dim=-1)
             x_s = self.x_s[pixel]
         else:
             x_s = torch.from_numpy(np.array([]))
+
+        # required for NSE loss
+        if self.target_std:
+            pixel_target_std = self.target_std[pixel]
+        else:
+            pixel_target_std = torch.from_numpy(np.array([]))
 
         # METADATA
         # store time as float32
@@ -338,5 +356,16 @@ class XarrayDataset(Dataset):
         data["y"] = y
         data["x_s"] = cast(Any, x_s)  #  make mypy happy
         data["x_f"] = x_f
+        data['target_std'] = pixel_target_std
 
         return data
+
+    def _calculate_per_pixel_target_std(self, ds: xr.Dataset):
+        pixels = ds["sample"].values.tolist()
+        for pixel in pixels:
+            # select pixel target data
+            target = ds.sel(sample=pixel)[self.cfg.target_variable].values
+            # calculate std for each target
+            pixel_target_std = torch.tensor([np.nanstd(target)], dtype=torch.float32)
+
+            self.target_std[pixel] = pixel_target_std

@@ -142,9 +142,12 @@ class Tester:
                 #  -- Recreate the output data with metadata -- #
                 pixels, times, horizons = create_metadata_arrays(data, self.test_dl)
 
-                #  TODO: check that these reshapes work correctly
-                sim = sim.reshape(pixels.shape)
-                obs = obs.reshape(pixels.shape)
+                #  Get the final horizon predictions (only interested in the final few)
+                #  TODO: ask freddy and daniel what's going on here ...
+                #  TODO: how to implement forecast horizon ???
+                # horizon = 1 if self.cfg.horizon < 1 else self.cfg.horizon
+                sim = sim[:, -1, :].reshape(pixels.shape)
+                obs = obs[:, -1, :].reshape(pixels.shape)
 
                 out["horizon"].append(horizons)
                 out["time"].append(times)
@@ -208,7 +211,8 @@ class Tester:
         # unnormalize values
         if unnormalize:
             normalizer = self.test_dl.dataset.normalizer  # type: ignore
-            preds = normalizer.unnormalize_preds(preds=preds, cfg=self.cfg)  # type: ignore
+            if normalizer is not None:
+                preds = normalizer.unnormalize_preds(preds=preds, cfg=self.cfg)  # type: ignore
 
         #  scatter plot the predictions
         if plot:

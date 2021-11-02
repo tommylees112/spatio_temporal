@@ -164,7 +164,9 @@ def _plot_single_timeseries(preds: xr.Dataset) -> Tuple[Any, Any]:
         preds = preds.drop("horizon")
     if "spatial_ref" in [c for c in preds.coords]:
         preds = preds.drop("spatial_ref")
-    preds.sel(pixel=pixel).to_dataframe().plot(ax=ax)
+    df = preds.sel(pixel=pixel).to_dataframe()
+    ax.plot(df.index, df["obs"], color="k", ls="--")
+    ax.plot(df.index, df["sim"], color="C0")
     plt.legend()
     ax.set_title(pixel)
     return f, ax
